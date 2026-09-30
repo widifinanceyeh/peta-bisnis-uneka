@@ -399,7 +399,7 @@ export default function App() {
         </Suspense>
       ) : halaman === 'turunan' ? (
         <Suspense fallback={muatModul}>
-          <TurunanPage ruang={ruang} onBukaPasal={bukaNaskah} onBukaTelaah={bukaTelaah}
+          <TurunanPage ruang={ruang} onBukaPasal={bukaNaskah} onBukaTelaah={bukaTelaah} onBukaUrusan={bukaUrusanId} urusan={urusan} ctx={ctx}
                        onGalat={(m) => setToast({ pesan: m, jenis: 'galat' })} />
         </Suspense>
       ) : halaman === 'telaah' ? (

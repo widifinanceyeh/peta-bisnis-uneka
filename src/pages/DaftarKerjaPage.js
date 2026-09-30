@@ -3,7 +3,7 @@ import { langganNaskah, ambilNaskah, muatInitNaskah, muatTelaah, muatLuar, simpa
 import { susunKerja, labelAyat } from '../utils/telaah';
 import { ButirPermen, MuatanLuar } from './TelaahPage';
 import { STORAGE_KEY } from '../config';
-import { RelAtas } from '../components/TombolRel';
+import { RelAtas, TombolLaci } from '../components/TombolRel';
 import useDraf from '../hooks/useDraf';
 
 /**
@@ -70,6 +70,7 @@ export default function DaftarKerjaPage({ onBukaTelaah, onBukaNaskah, urusan, on
           ))}
         </div>
       </aside>
+      <TombolLaci label="Daftar periksa" />
       <main className="nk-utama tl-utama tl-kunci">
         <div className="tl-kepala">
           <h2 className="nk-judul">{aktif.label}{aktif.jumlah ? ' · ' + aktif.jumlah : ''}</h2>

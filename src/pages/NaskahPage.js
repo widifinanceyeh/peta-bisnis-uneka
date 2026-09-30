@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { langganNaskah, ambilNaskah, muatInitNaskah, muatBab, muatTelaah, muatDasarHukumPasal, muatTeks } from '../naskah';
-import { RelAtas } from '../components/TombolRel';
+import { RelAtas, TombolLaci } from '../components/TombolRel';
 import BarisJejak from '../components/BarisJejak';
 import PitaPeta, { PetaBaris } from '../components/PitaPeta';
 import PanelDasarHukum from '../components/PanelDasarHukum';
@@ -256,6 +256,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
           <span><span className="tanda-m">M</span> ditagih Monev</span>
         </div>
       </aside>
+      <TombolLaci label="Daftar pasal" />
 
       <div className="nk-gulir" ref={gulir} onScroll={onGulir}>
       <main className={'nk-utama' + (kerja ? '' : ' nk-rapat')}>

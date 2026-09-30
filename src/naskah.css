@@ -410,7 +410,6 @@ mark.tugas { color: inherit; padding: 0 2px; border-radius: 2px; }
 
 @media (max-width: 980px) {
   .nk-wrap { grid-template-columns: 1fr; }
-  .nk-rel { display: none; }
   .nk-kepala5.ringkas .rincian-no { display: none; }
   .nk-pilih-sempit { display: block; width: 100%; }
   .nk-utama { padding: var(--sp-2); }
@@ -613,8 +612,71 @@ mark.tl-organ { background: var(--kuning); color: inherit; padding: 0 1px; }
 .td-form .inp { font-weight: 400; }
 .td-dua { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .td-label { margin: 12px 0 6px; }
-@media (max-width: 980px) { .rel-tombol { display: none; } }
+/* v5.7: di layar sempit panel daftar menjadi laci dari kiri (lihat TombolRel.js). */
+.laci-tombol, .laci-latar { display: none; }
+@media (max-width: 980px) {
+  .nk-rel {
+    position: fixed; top: 0; bottom: 0; left: 0; z-index: 70; width: min(86vw, 340px);
+    transform: translateX(-104%); transition: transform 0.2s ease, visibility 0.2s; visibility: hidden;
+    box-shadow: 4px 0 18px rgba(20, 30, 60, 0.18);
+  }
+  .rel-laci .nk-rel { transform: none; visibility: visible; }
+  .rel-laci .laci-latar { display: block; position: fixed; inset: 0; z-index: 65; background: rgba(20, 28, 60, 0.35); }
+  .laci-tombol {
+    display: inline-flex; align-items: center; gap: 6px; position: fixed; left: 12px; bottom: 14px; z-index: 50;
+    height: 40px; padding: 0 14px 0 12px; border: 0; border-radius: 20px; background: var(--navy); color: var(--putih);
+    font-family: var(--font); font-size: 13px; font-weight: 600; box-shadow: 0 3px 10px rgba(20, 30, 60, 0.28); cursor: pointer;
+  }
+  .rel-laci .laci-tombol { display: none; }
+  .nk-utama { padding-bottom: 64px; }
+}
 .tag-MONEV { background: #e8ecf5; color: var(--navy); }
 /* v5.6: penanda paket data sedang diunduh di latar. */
 .topbar-perbarui { font-size: 11.5px; color: rgba(255, 255, 255, 0.78); margin-right: 4px; white-space: nowrap; }
 .penanda-ulang { margin-left: 8px; padding: 2px 10px; font-size: 12px; }
+
+/* ======================================================= v5.7 DOKUMEN TURUNAN PER AYAT */
+.tl-gulir > .td-form, .tl-gulir > .td-tabel, .tl-gulir > .pp, .tl-gulir > .td-ringkas, .tl-gulir > .pk-panduan, .td-form > * { flex-shrink: 0; }
+.td-form { max-width: 1100px; }
+.td-tabel { border: 1px solid var(--garis); border-radius: var(--r); background: var(--putih); overflow: hidden; }
+.td-kepala, .td-baris { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) 30px; }
+.td-baca .td-kepala, .td-baca .td-baris { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+.td-kepala span { background: var(--garis-2); font-size: 10.5px; font-weight: 700; letter-spacing: 0.3px; color: var(--teks-redup); padding: 6px 10px; text-transform: uppercase; }
+.td-baris > * { padding: 8px 10px; border-top: 1px solid var(--garis); min-width: 0; }
+.td-baris > .td-ayat { border-right: 1px solid var(--garis); }
+.td-baris > textarea.td-pokok { margin: 0; border: 0; border-top: 1px solid var(--garis); border-radius: 0; resize: vertical; min-height: 64px; font-size: 13px; }
+.td-baris > textarea.td-pokok:focus { outline: 2px solid var(--ice); outline-offset: -2px; }
+.td-pokok { font-size: 13px; white-space: pre-wrap; }
+.td-bunyi { font-size: 12.5px; color: #2b3040; margin-top: 3px; line-height: 1.45; }
+.td-tag { display: inline-block; font-size: 10px; font-weight: 700; border-radius: 100px; padding: 0 7px; margin-left: 6px; background: var(--garis-2); color: var(--teks-redup); vertical-align: 1px; }
+.td-tag-deleg { background: #e3f4ec; color: #1d7359; }
+.td-tag-lain { background: #fbe3e7; color: #a32330; }
+.td-tag-patah { background: #fbe3e7; color: #a32330; }
+.td-patah { color: #a32330; }
+.td-buang { border: 0; background: transparent; color: var(--teks-redup); font-size: 18px; line-height: 1; cursor: pointer; padding: 8px 0; }
+.td-buang:hover { color: #a32330; }
+.td-kosong { padding: 10px; border-top: 1px solid var(--garis); }
+.td-tambah { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.td-pilih { border: 1px solid var(--garis); border-radius: var(--r); background: var(--putih); padding: 8px; max-height: 360px; overflow-y: auto; }
+.td-pilih > .inp { width: 100%; margin-bottom: 6px; }
+.td-pilih-grup { font-size: 10.5px; font-weight: 700; color: var(--teks-redup); text-transform: uppercase; letter-spacing: 0.3px; padding: 6px 4px 3px; }
+.td-pilih-item { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; font-family: var(--font); font-size: 12.5px; color: var(--teks);
+  background: transparent; border: 0; border-top: 1px solid var(--garis-2); padding: 6px 4px; cursor: pointer; }
+.td-pilih-item:hover { background: var(--latar); }
+.td-pilih-item.kunci { cursor: not-allowed; opacity: 0.55; }
+.td-pilih-bunyi { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.td-milik { font-size: 11px; color: #a32330; margin-left: 8px; }
+.td-pilih-kosong { padding: 2px 4px 6px; }
+.td-ringkas { margin: 12px 0 4px; }
+.td-ringkas ol { margin: 4px 0 0; padding-left: 22px; font-size: 13px; line-height: 1.5; }
+.td-pra { white-space: pre-wrap; }
+.td-bentrok-dok { font-size: 12.5px; }
+@media (max-width: 760px) {
+  .td-kepala { display: none; }
+  .td-baris, .td-baca .td-baris { grid-template-columns: minmax(0, 1fr) 30px; }
+  .td-baris > .td-ayat { border-right: 0; grid-column: 1; }
+  .td-baris > .td-pokok { grid-column: 1; border-top: 0; padding-top: 0; }
+  .td-baris > textarea.td-pokok { border-top: 0; margin: 0 10px 8px; width: calc(100% - 20px); border: 1px solid var(--garis); border-radius: var(--r); }
+  .td-baris > .td-buang { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
+  .td-dua { grid-template-columns: 1fr; }
+}

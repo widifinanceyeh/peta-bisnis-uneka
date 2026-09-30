@@ -8,7 +8,7 @@ import { urutkan } from '../utils/langkah';
 import { ChipOrgan } from '../components/PitaPeta';
 import { pasalId, labelAyat, KODE_TEMUAN, NAMA_TEMUAN } from '../utils/telaah';
 import { STORAGE_KEY } from '../config';
-import { RelAtas } from '../components/TombolRel';
+import { RelAtas, TombolLaci } from '../components/TombolRel';
 import useDraf from '../hooks/useDraf';
 
 /**
@@ -90,6 +90,7 @@ export default function TelaahPage({ sel, onPilih, onBukaPasal, onBukaUrusan, ur
           <span><i className="nk-titik merah" /> belum tertuang</span>
         </div>
       </aside>
+      <TombolLaci label="Daftar urusan" />
 
       <main className="nk-utama tl-utama tl-kunci">
         <div className="tl-intro">
