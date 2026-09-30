@@ -9,6 +9,7 @@ import { ChipOrgan } from '../components/PitaPeta';
 import { pasalId, labelAyat, KODE_TEMUAN, NAMA_TEMUAN } from '../utils/telaah';
 import { STORAGE_KEY } from '../config';
 import { RelAtas } from '../components/TombolRel';
+import useDraf from '../hooks/useDraf';
 
 /**
  * Halaman Telaah (v5.4): berangkat dari urusan peta 2026, urut 59 urusan.
@@ -295,9 +296,10 @@ function Rincian({ u, h, n, ctx, idxK, kerja, rapat, pilihanRapat, onGalat, onBu
 
 /** Pencatatan hasil pembahasan bunyi naskah satu urusan (ruang Kerja). Hanya status dan catatan substansi. */
 function HasilRapat({ id, r, pilihan, onGalat }) {
-  const [draf, setDraf] = useState(null);
+  // v5.6: catatan yang belum tersimpan disimpan sebagai draf di peramban.
+  const [draf, setDraf, lepas] = useDraf('rapat:' + id, null);
   const [pesan, setPesan] = useState('');
-  useEffect(() => { setDraf(null); setPesan(''); }, [id]);
+  useEffect(() => { setPesan(''); }, [id]);
   const d = draf || { hasil: r ? r.hasil : '', catatan: r ? r.catatan : '' };
   const simpan = async (patch) => {
     const nilai = Object.assign({}, d, patch);
@@ -305,11 +307,11 @@ function HasilRapat({ id, r, pilihan, onGalat }) {
     setPesan('Menyimpan…');
     try {
       await simpanHasilRapat({ id, hasil: nilai.hasil, catatan: nilai.catatan, oleh: oleh() });
-      setDraf(null);
+      lepas(null);
       setPesan('Tersimpan');
     } catch (e) {
       const m = (e && e.message) || String(e);
-      setPesan(m); if (onGalat) onGalat(m);
+      setPesan('Gagal disimpan (' + m + '). Ketikan tetap di sini.'); if (onGalat) onGalat(m);
     }
   };
   return (
@@ -322,6 +324,7 @@ function HasilRapat({ id, r, pilihan, onGalat }) {
              onChange={(e) => setDraf(Object.assign({}, d, { catatan: e.target.value }))}
              onBlur={() => { if (draf && draf.catatan !== (r ? r.catatan : '')) simpan({}); }} />
       {pesan ? <span className={'kecil' + (/gagal|tidak|wajib/i.test(pesan) ? ' jj-pesan' : '')}>{pesan}</span> : null}
+      {draf && /^Gagal/.test(pesan) ? <button type="button" className="tbl" onClick={() => simpan({})}>Simpan ulang</button> : null}
     </div>
   );
 }
@@ -422,7 +425,7 @@ const NAMA_JENIS = { dibawa: 'Dibawa dari 2025', baru: 'Baru di 2026', dihapus: 
 export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
   const hapus = jenis === 'hapus';
   const [belum, setBelum] = useState(true);
-  const [draf, setDraf] = useState({});
+  const [draf, setDraf] = useDraf('luar:' + (hapus ? 'hapus' : 'luar'), {});   // v5.6: draf putusan bertahan bila simpan gagal
   const [pesan, setPesan] = useState({});
   useEffect(() => { muatLuar().catch((e) => onGalat && onGalat((e && e.message) || String(e))); }, [onGalat]);
   const L = n.luar;
@@ -439,7 +442,7 @@ export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
       if (!String(d.alasan || '').trim()) { tulisPesan(x.id, 'Alasan wajib diisi.'); return; }
       tulisPesan(x.id, 'Menyimpan…');
       try { await konfirmasiHapusLuar(x, d.alasan, oleh()); hapusDraf(x.id); tulisPesan(x.id, ''); }
-      catch (e) { tulisPesan(x.id, (e && e.message) || String(e)); }
+      catch (e) { tulisPesan(x.id, 'Gagal disimpan (' + ((e && e.message) || String(e)) + '). Ketikan tetap di sini.'); }
     };
     return (
       <>
@@ -464,7 +467,7 @@ export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
                       <div className="tl-putus">
                         <textarea className="inp" rows={2} placeholder="Alasan setuju dihapus (wajib)" value={(draf[x.id] && draf[x.id].alasan) || ''} onChange={(e) => set(x.id, { alasan: e.target.value })} />
                         <div className="tl-aksi">
-                          <button type="button" className="tbl" onClick={() => setuju(x)}>Setuju dihapus</button>
+                          <button type="button" className="tbl" onClick={() => setuju(x)}>{/^Gagal/.test(pesan[x.id] || '') ? 'Simpan ulang' : 'Setuju dihapus'}</button>
                           <button type="button" className="tbl tbl-ringan" onClick={() => onBukaPasal(x.pasal)}>Pertahankan… (buka Naskah)</button>
                           {pesan[x.id] ? <span className="jj-pesan">{pesan[x.id]}</span> : null}
                         </div>
@@ -495,7 +498,7 @@ export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
     if (!String(d.alasan || '').trim()) { tulisPesan(g.pasal, 'Alasan wajib diisi.'); return; }
     tulisPesan(g.pasal, 'Menyimpan…');
     try { await simpanPutusanPasal({ pasal: g.pasal, putusan: d.putusan, alasan: d.alasan, urusan: d.urusan || '', oleh: oleh() }); hapusDraf(g.pasal); tulisPesan(g.pasal, ''); }
-    catch (e) { tulisPesan(g.pasal, (e && e.message) || String(e)); }
+    catch (e) { tulisPesan(g.pasal, 'Gagal disimpan (' + ((e && e.message) || String(e)) + '). Ketikan tetap di sini.'); }
   };
   return (
     <>
@@ -546,7 +549,7 @@ export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
                             ) : null}
                             <textarea className="inp" rows={2} placeholder="Alasan (wajib)" value={d.alasan || ''} onChange={(e) => set(g.pasal, { alasan: e.target.value })} />
                             <div className="tl-aksi">
-                              <button type="button" className="tbl" onClick={() => simpan(g)}>Simpan</button>
+                              <button type="button" className="tbl" onClick={() => simpan(g)}>{/^Gagal/.test(pesan[g.pasal] || '') ? 'Simpan ulang' : 'Simpan'}</button>
                               <button type="button" className="tbl tbl-ringan" onClick={() => hapusDraf(g.pasal)}>Batal</button>
                               {pesan[g.pasal] ? <span className="jj-pesan">{pesan[g.pasal]}</span> : null}
                             </div>

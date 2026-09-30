@@ -3,6 +3,7 @@ import TeksBeda from './TeksBeda';
 import { simpanRedaksi, batalRedaksi, terapkanRedaksi } from '../naskah';
 import { cekStrukturRedaksi } from '../utils/telaah';
 import { STORAGE_KEY } from '../config';
+import useDraf, { bacaDraf } from '../hooks/useDraf';
 
 /**
  * Usulan redaksi satu ayat rancangan 2026 (v5.1).
@@ -15,7 +16,8 @@ import { STORAGE_KEY } from '../config';
 export default function KotakRedaksi({ ayat, redaksi, kerja, monev, onGalat }) {
   const aktif = redaksi ? redaksi.aktif : null;
   const diterapkan = redaksi ? redaksi.diterapkan : [];
-  const [sunting, setSunting] = useState(false);
+  // v5.6: usulan yang belum tersimpan langsung dibuka lagi.
+  const [sunting, setSunting] = useState(() => bacaDraf('redaksi:' + ayat.id) !== undefined);
   const [yakin, setYakin] = useState(false);
   const [sibuk, setSibuk] = useState('');
   const [pesan, setPesan] = useState('');
@@ -87,11 +89,17 @@ function oleh() {
 }
 
 function EditorRedaksi({ ayat, aktif, terkunci, onTutup, onGalat }) {
-  const [bunyi, setBunyi] = useState(aktif ? aktif.baru : ayat.teks);
-  const [alasan, setAlasan] = useState(aktif ? aktif.alasan : '');
+  // v5.6: bunyi dan alasan disimpan sebagai draf di peramban sampai simpan berhasil atau Batal.
+  const [draf, setDraf, lepas, adaDraf] = useDraf('redaksi:' + ayat.id, { bunyi: aktif ? aktif.baru : ayat.teks, alasan: aktif ? aktif.alasan : '' });
+  const bunyi = draf.bunyi;
+  const alasan = draf.alasan;
+  const setBunyi = (v) => setDraf((d) => Object.assign({}, d, { bunyi: v }));
+  const setAlasan = (v) => setDraf((d) => Object.assign({}, d, { alasan: v }));
   const [nama, setNama] = useState(oleh);
   const [sibuk, setSibuk] = useState(false);
-  const [pesan, setPesan] = useState('');
+  const [pesan, setPesan] = useState(adaDraf ? 'Ketikan yang belum tersimpan dipulihkan.' : '');
+  const [gagal, setGagal] = useState(false);
+  const batal = () => { lepas(); onTutup(); };
   const struktur = cekStrukturRedaksi(ayat.teks, bunyi);
   const sama = bunyi.trim() === String(ayat.teks).trim();
 
@@ -102,10 +110,13 @@ function EditorRedaksi({ ayat, aktif, terkunci, onTutup, onGalat }) {
     setSibuk(true); setPesan('');
     try {
       await simpanRedaksi({ id26: ayat.id, lama: ayat.teks, baru: bunyi, alasan, oleh: nama });
+      lepas();
       onTutup();
     } catch (e) {
       const m = (e && e.message) || String(e);
-      setPesan(m); if (onGalat) onGalat(m);
+      setGagal(true);
+      setPesan('Gagal disimpan (' + m + '). Ketikan tetap di sini; tekan Simpan ulang.');
+      if (onGalat) onGalat(m);
     } finally { setSibuk(false); }
   };
 
@@ -131,8 +142,8 @@ function EditorRedaksi({ ayat, aktif, terkunci, onTutup, onGalat }) {
       </label>
       <div className="jj-kaki">
         {pesan ? <span className="jj-pesan">{pesan}</span> : null}
-        <button type="button" className="tbl tbl-ringan" onClick={onTutup} disabled={sibuk}>Batal</button>
-        <button type="button" className="tbl" onClick={simpan} disabled={sibuk}>{sibuk ? 'Menyimpan…' : 'Simpan usulan'}</button>
+        <button type="button" className="tbl tbl-ringan" onClick={batal} disabled={sibuk}>Batal</button>
+        <button type="button" className="tbl" onClick={simpan} disabled={sibuk}>{sibuk ? 'Menyimpan…' : gagal ? 'Simpan ulang' : 'Simpan usulan'}</button>
       </div>
     </div>
   );

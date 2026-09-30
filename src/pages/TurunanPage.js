@@ -3,6 +3,7 @@ import { langganNaskah, ambilNaskah, muatTurunan, simpanTurunan } from '../naska
 import { labelAyat } from '../utils/telaah';
 import { RelAtas } from '../components/TombolRel';
 import { STORAGE_KEY } from '../config';
+import useDraf from '../hooks/useDraf';
 
 /**
  * Halaman Dokumen Turunan (v5.5): dokumen yang wajib terbit setelah Statuta berlaku.
@@ -109,21 +110,23 @@ export default function TurunanPage({ ruang, onBukaPasal, onBukaTelaah, onGalat 
 }
 
 function FormDok({ d, T, onTersimpan, onGalat }) {
-  const [f, setF] = useState(() => ({
+  // v5.6: isian disimpan sebagai draf di peramban sampai simpan berhasil.
+  const [f, setF, lepas, adaDraf] = useDraf('turunan:' + (d ? d.id : 'baru'), {
     dokumen: d ? d.dokumen : '', penetap: d ? d.penetap : T.penetap[0], dasar: d ? d.dasar : '',
     pokok: d ? d.pokok : '', status: d ? d.status : (T.pilihanStatus[0] || ''), catatan: d ? d.catatan : ''
-  }));
-  const [pesan, setPesan] = useState('');
-  const ubah = (k) => (e) => setF(Object.assign({}, f, { [k]: e.target.value }));
+  });
+  const [pesan, setPesan] = useState(adaDraf ? 'Isian yang belum tersimpan dipulihkan.' : '');
+  const ubah = (k) => (e) => { const v = e.target.value; setF((x) => Object.assign({}, x, { [k]: v })); };
   const simpan = async () => {
     setPesan('Menyimpan…');
     try {
       const h = await simpanTurunan(Object.assign({ id: d ? d.id : '', oleh: oleh() }, f));
+      lepas();
       setPesan('Tersimpan.');
       if (onTersimpan) onTersimpan(h);
     } catch (e) {
       const m = (e && e.message) || String(e);
-      setPesan(m);
+      setPesan('Gagal disimpan (' + m + '). Isian tetap di sini.');
       if (onGalat) onGalat(m);
     }
   };
@@ -137,7 +140,7 @@ function FormDok({ d, T, onTersimpan, onGalat }) {
       <label>Dasar pasal <span className="kecil">contoh: Pasal 39 ayat (3), 42 ayat (3)</span><input className="inp" value={f.dasar} onChange={ubah('dasar')} /></label>
       <label>Pokok urusan<textarea className="inp" rows={3} value={f.pokok} onChange={ubah('pokok')} /></label>
       <label>Catatan<textarea className="inp" rows={2} value={f.catatan} onChange={ubah('catatan')} /></label>
-      <div className="tl-aksi"><button type="button" className="tbl" onClick={simpan}>Simpan</button>{pesan ? <span className="kecil">{pesan}</span> : null}</div>
+      <div className="tl-aksi"><button type="button" className="tbl" onClick={simpan}>{/^Gagal/.test(pesan) ? 'Simpan ulang' : 'Simpan'}</button>{pesan ? <span className="kecil">{pesan}</span> : null}</div>
     </div>
   );
 }

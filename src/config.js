@@ -4,7 +4,7 @@
  * label kolom, judul halaman). Semuanya berasal dari sheet Cfg_*.
  */
 
-export const APP_VERSION = '5.5.1';
+export const APP_VERSION = '5.6.0';
 
 /**
  * URL deployment Apps Script (.../exec).

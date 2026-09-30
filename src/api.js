@@ -97,10 +97,10 @@ function layakDiulang(e) {
   );
 }
 
-async function sekaliGet(url) {
+async function sekaliGet(url, batas) {
   let res;
   try {
-    res = await withTimeout(fetch(url, { method: 'GET', redirect: 'follow', cache: 'no-store' }), TIMEOUT_PERCOBAAN_MS);
+    res = await withTimeout(fetch(url, { method: 'GET', redirect: 'follow', cache: 'no-store' }), batas || TIMEOUT_PERCOBAAN_MS);
   } catch (e) {
     throw galatJaringan(e);
   }
@@ -116,6 +116,7 @@ async function sekaliGet(url) {
  * @param {string} action
  * @param {Object} [params]
  * @param {Object} [opsi] onPercobaan: (ke, total) => void — dipakai penanda "menyambung ulang".
+ *                        batas: batas waktu per percobaan (ms); percobaan: jumlah percobaan (v5.6).
  */
 export async function apiGet(action, params, opsi) {
   periksaUrl();
@@ -124,13 +125,14 @@ export async function apiGet(action, params, opsi) {
   const url = API_URL + '?' + q.toString();
 
   let terakhir = null;
-  for (let ke = 1; ke <= PERCOBAAN; ke++) {
+  const total = (opsi && opsi.percobaan) || PERCOBAAN;
+  for (let ke = 1; ke <= total; ke++) {
     try {
-      return await sekaliGet(url);
+      return await sekaliGet(url, opsi && opsi.batas);
     } catch (e) {
       terakhir = e;
-      if (ke === PERCOBAAN || !layakDiulang(e)) break;
-      if (opsi && opsi.onPercobaan) { try { opsi.onPercobaan(ke, PERCOBAAN); } catch (x) { /* abaikan */ } }
+      if (ke === total || !layakDiulang(e)) break;
+      if (opsi && opsi.onPercobaan) { try { opsi.onPercobaan(ke, total); } catch (x) { /* abaikan */ } }
       await tidur(JEDA_MS[ke - 1] || 4000);
     }
   }
@@ -224,6 +226,10 @@ export const api = {
   // v5.5: Dokumen Turunan, bunyi seluruh ayat untuk pencarian, putusan per pasal.
   naskahTurunan: () => apiGet('naskahTurunan'),
   naskahTeks: () => apiGet('naskahTeks'),
+  // v5.6 (Paket.gs): j = 'n' naskah | 'h' dasar hukum; v = versi yang sudah dimiliki; bangun = susun sekarang.
+  paketVersi: () => apiGet('paketVersi', null, { batas: 15000 }),
+  paket: (j, v, bangun) => apiGet('paket', { j, v: v || '', bangun: bangun ? '1' : '0' },
+    bangun ? { batas: 150000, percobaan: 1 } : { batas: 30000 }),
   saveTurunan: (payload) => simpanDenganCadanganAksi(Object.assign({ action: 'saveTurunan' }, payload), 'saveTurunan'),
   savePutusanPasal: (payload) => simpanDenganCadanganAksi(Object.assign({ action: 'savePutusanPasal' }, payload), 'savePutusanPasal'),
   saveKembar: (payload) => simpanDenganCadanganAksi(Object.assign({ action: 'saveKembar' }, payload), 'saveKembar'),   // v5.4

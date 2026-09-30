@@ -4,6 +4,7 @@ import { susunKerja, labelAyat } from '../utils/telaah';
 import { ButirPermen, MuatanLuar } from './TelaahPage';
 import { STORAGE_KEY } from '../config';
 import { RelAtas } from '../components/TombolRel';
+import useDraf from '../hooks/useDraf';
 
 /**
  * Halaman Periksa (v5.4, hanya ruang Kerja) — pengganti Daftar kerja.
@@ -86,7 +87,7 @@ export default function DaftarKerjaPage({ onBukaTelaah, onBukaNaskah, urusan, on
 
 /** Pasangan dugaan ayat kembar, berdampingan, dengan satu putusan: "Bukan kembar" (beralasan). */
 function Kembar({ daftar, onBukaPasal }) {
-  const [alasan, setAlasan] = useState({});
+  const [alasan, setAlasan] = useDraf('kembar', {});   // v5.6: alasan yang belum tersimpan tidak hilang
   const [pesan, setPesan] = useState({});
   const kunci = (m) => m.a + '|' + m.b;
   const tulis = (k, v) => setPesan((p) => Object.assign({}, p, { [k]: v }));
@@ -98,8 +99,9 @@ function Kembar({ daftar, onBukaPasal }) {
       let oleh = '';
       try { oleh = window.localStorage.getItem(STORAGE_KEY.OLEH) || ''; } catch (e) { /* abaikan */ }
       await simpanKembar({ a: m.a, b: m.b, alasan: alasan[k], oleh });
+      setAlasan((d) => { const nd = Object.assign({}, d); delete nd[k]; return nd; });
     } catch (e) {
-      tulis(k, (e && e.message) || String(e));
+      tulis(k, 'Gagal disimpan (' + ((e && e.message) || String(e)) + '). Ketikan tetap di sini.');
     }
   };
   return (
@@ -119,8 +121,8 @@ function Kembar({ daftar, onBukaPasal }) {
             <div className="tl-aksi">
               <span className="kecil">Kemiripan {Math.round((m.s || 0) * 100)}%</span>
               <input className="inp" placeholder="Alasan bukan kembar (wajib)" value={alasan[k] || ''}
-                     onChange={(e) => setAlasan(Object.assign({}, alasan, { [k]: e.target.value }))} />
-              <button type="button" className="tbl" onClick={() => putus(m)}>Bukan kembar</button>
+                     onChange={(e) => { const v = e.target.value; setAlasan((d) => Object.assign({}, d, { [k]: v })); }} />
+              <button type="button" className="tbl" onClick={() => putus(m)}>{/^Gagal/.test(pesan[k] || '') ? 'Simpan ulang' : 'Bukan kembar'}</button>
               {pesan[k] ? <span className="jj-pesan">{pesan[k]}</span> : null}
             </div>
           </div>

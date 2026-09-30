@@ -1,5 +1,6 @@
 import { api } from './api';
 import { STORAGE_KEY } from './config';
+import { bacaSimpanan, tulisSimpanan } from './simpanan';
 
 /**
  * naskah.js — penyimpan keadaan modul Naskah dan Telaah (v5.4).
@@ -13,6 +14,11 @@ import { STORAGE_KEY } from './config';
  *
  * Simpan jejak bersifat optimistis: layar berubah lebih dulu, nilai akhir
  * diambil dari jawaban backend, dan bila gagal nilai lama dikembalikan.
+ *
+ * v5.6 (paket): seluruh data Naskah (74 pasal, Telaah, Periksa, Turunan, bunyi ayat) dan bunyi dasar hukum
+ * diambil dalam dua paket (Paket.gs), disimpan di IndexedDB, lalu dipakai semua menu. Berpindah pasal tidak
+ * lagi memanggil server. Pemeriksaan versi berjalan di latar (saat dibuka, saat tab kembali aktif, tiap 2 menit);
+ * paket baru hanya diunduh bila versinya berubah. Bila paket gagal, jalur lama per bab/per pasal tetap dipakai.
  */
 
 let keadaan = {
@@ -32,7 +38,8 @@ let keadaan = {
   memuatTelaah: false,
   memuat: {},          // kunci 'bab:VII' | 'pasal:68' -> true
   galat: '',
-  galatTelaah: ''
+  galatTelaah: '',
+  memperbarui: false   // v5.6: paket sedang diunduh (penanda kecil di bilah atas)
 };
 
 const pendengar = new Set();
@@ -41,39 +48,130 @@ let janjiTelaah = null;
 let janjiYatim = null;
 const janji = {};
 
-/* ------------------------------------------------------------ salinan peramban (v5.4) */
+/* ------------------------------------------------------------ paket dan simpanan peramban (v5.6) */
 
-const basi = { init: false, telaah: false, teks: false, bab: {} };   // dipulihkan dari peramban, belum diperbarui dari server
-(function pulihkan() {
-  try {
-    const c = JSON.parse(window.localStorage.getItem(STORAGE_KEY.CACHE_NASKAH) || 'null');
-    if (!c) return;
-    if (c.init) { keadaan.init = c.init; basi.init = true; }
-    if (c.telaah) { keadaan.telaah = c.telaah; basi.telaah = true; }
-    if (c.pasal) keadaan.pasal = c.pasal;
-    if (c.bab) { keadaan.bab = c.bab; Object.keys(c.bab).forEach((k) => { basi.bab[k] = true; }); }
-    if (c.teks) { keadaan.teks = c.teks; basi.teks = true; }
-  } catch (e) { /* salinan rusak atau peramban menolak: mulai kosong */ }
-})();
+const basi = { init: false, telaah: false, teks: false, bab: {} };   // tidak lagi dipakai sejak v5.6 (tetap false)
+const MEDAN_PAKET = ['init', 'pasal', 'telaah', 'kepatuhan', 'luar', 'hasilRapat', 'turunan', 'teks'];
+const JEDA_CEK_MS = 120000;
+const paketV = { n: '', h: '' };
+const janjiPaket = {};
+let hukumLengkap = false;     // bunyi seluruh kutipan dasar hukum sudah ada (paket h)
+let ubahan = 0;               // bertambah setiap simpan; paket yang dipesan sebelum simpan dibuang
+let sedangTerapkan = false;
+let dimulai = false;
+let janjiAwal = null;
+let terakhirCek = 0;
+let jmlPerbarui = 0;
+let simpanBerjalan = 0;       // simpan yang belum selesai: salinan peramban ditunda agar nilai optimistis tidak tersimpan
+
+function perbarui(naik) {
+  jmlPerbarui = Math.max(0, jmlPerbarui + (naik ? 1 : -1));
+  const aktif = jmlPerbarui > 0;
+  if (keadaan.memperbarui !== aktif) set({ memperbarui: aktif });
+}
+
+function terapkanPaket(isi) {
+  if (!isi) return;
+  const patch = {};
+  MEDAN_PAKET.forEach((k) => { if (isi[k]) patch[k] = isi[k]; });
+  if (isi.pasal) {
+    const bab = {};
+    Object.keys(isi.pasal).forEach((n) => { const p = isi.pasal[n]; if (p && p.bab) bab[p.bab] = true; });
+    patch.bab = bab;
+  }
+  sedangTerapkan = true;
+  try { set(patch); } finally { sedangTerapkan = false; }
+}
+
+function terapkanHukum(isi) {
+  if (!isi || !isi.hukum) return;
+  hukumLengkap = true;
+  set({ hukum: Object.assign({}, keadaan.hukum, isi.hukum) });
+}
+
+const siapLokal = (async () => {
+  try { window.localStorage.removeItem(STORAGE_KEY.CACHE_NASKAH); } catch (e) { /* salinan lama v5.4 tidak dipakai lagi */ }
+  const [n, h] = await Promise.all([bacaSimpanan('paket-n'), bacaSimpanan('paket-h')]);
+  if (n && n.isi) { terapkanPaket(n.isi); paketV.n = n.v || ''; }
+  if (h && h.isi) { terapkanHukum(h.isi); paketV.h = h.v || ''; }
+})().catch(() => { /* simpanan rusak: mulai kosong */ });
 
 let jedaSalin = null;
 function simpanSalinan() {
   if (jedaSalin) return;
   jedaSalin = setTimeout(() => {
     jedaSalin = null;
-    const k = STORAGE_KEY.CACHE_NASKAH;
-    try {
-      window.localStorage.setItem(k, JSON.stringify({ init: keadaan.init, telaah: keadaan.telaah, pasal: keadaan.pasal, bab: keadaan.bab, teks: keadaan.teks }));
-    } catch (e) {
-      try { window.localStorage.setItem(k, JSON.stringify({ init: keadaan.init })); } catch (x) { /* ruang penuh: abaikan */ }
-    }
-  }, 1500);
+    if (simpanBerjalan > 0) return;   // ditulis ulang sesudah simpan selesai (lihat lacak)
+    const isi = {};
+    MEDAN_PAKET.forEach((k) => { isi[k] = keadaan[k]; });
+    tulisSimpanan('paket-n', { v: paketV.n, isi, disimpan: Date.now() });
+  }, 2000);
 }
+
+/** Satu paket ('n' naskah | 'h' hukum). paksa: abaikan versi lokal dan minta disusun ulang (Refresh). */
+function ambilPaket(j, paksa, tampak) {
+  if (janjiPaket[j]) return janjiPaket[j];
+  const tanda = !!(tampak || paksa || (j === 'n' ? !keadaan.init : !hukumLengkap));
+  if (tanda) perbarui(true);
+  janjiPaket[j] = (async () => {
+    let punya = paksa ? '' : paketV[j];
+    let bangun = !!paksa;
+    for (let putaran = 0; putaran < 3; putaran++) {
+      const awal = ubahan;
+      const d = await api.paket(j, punya, bangun);
+      if (!d || d.sama) return false;
+      if (j === 'n' && ubahan !== awal) { punya = ''; bangun = true; continue; }   // ada simpan selama menunggu
+      if (j === 'n') terapkanPaket(d.isi); else terapkanHukum(d.isi);
+      paketV[j] = d.v;
+      tulisSimpanan('paket-' + j, { v: d.v, isi: d.isi, disimpan: Date.now() });
+      if (!d.basi) return true;
+      punya = d.v; bangun = true;
+      if (!tanda) { perbarui(true); }   // paket basi: penyusunan versi terbaru ditampilkan sebagai memperbarui
+    }
+    return true;
+  })().finally(() => { delete janjiPaket[j]; if (tanda) perbarui(false); });
+  return janjiPaket[j];
+}
+
+function cekPaket(paksa) {
+  terakhirCek = Date.now();
+  return Promise.all([ambilPaket('n', paksa).catch(() => false), ambilPaket('h', paksa).catch(() => false)]);
+}
+
+/**
+ * Dipanggil sekali (App, atau muat* pertama). Paket di peramban dipakai lebih dulu; bila belum ada sama sekali,
+ * halaman menunggu paket pertama agar tidak memicu permintaan berantai lama.
+ */
+export function mulaiPaket() {
+  if (dimulai) return janjiAwal;
+  dimulai = true;
+  janjiAwal = siapLokal.then(() => {
+    const cek = cekPaket(false);
+    if (keadaan.init && Object.keys(keadaan.pasal || {}).length) return null;
+    return cek;
+  }).catch(() => null);
+  try {
+    const periksa = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (Date.now() - terakhirCek < 60000) return;
+      cekPaket(false);
+    };
+    window.addEventListener('focus', periksa);
+    document.addEventListener('visibilitychange', periksa);
+    window.setInterval(() => { if (document.visibilityState !== 'hidden' && Date.now() - terakhirCek >= JEDA_CEK_MS) cekPaket(false); }, 30000);
+  } catch (e) { /* lingkungan tanpa window: abaikan */ }
+  return janjiAwal;
+}
+
+function tunggu() { return mulaiPaket() || Promise.resolve(null); }
+
+/** Menandai bahwa data diubah dari layar: paket yang sedang dipesan tidak boleh menimpa perubahan itu. */
+function catatUbahan() { ubahan++; }
 
 function set(patch) {
   keadaan = Object.assign({}, keadaan, patch);
   pendengar.forEach((fn) => { try { fn(keadaan); } catch (e) { /* abaikan */ } });
-  if (patch.init || patch.telaah || patch.pasal || patch.teks) simpanSalinan();
+  if (!sedangTerapkan && MEDAN_PAKET.some((k) => patch[k] !== undefined)) simpanSalinan();
 }
 
 export function langganNaskah(fn) {
@@ -87,8 +185,13 @@ export function ambilNaskah() { return keadaan; }
 /* ------------------------------------------------------------ baca */
 
 export function muatInitNaskah(paksa) {
+  if (paksa) return muatInitNaskah_(true);
+  return tunggu().then(() => muatInitNaskah_(false));
+}
+
+function muatInitNaskah_(paksa) {
   if (keadaan.init && !paksa) {
-    if (basi.init) { basi.init = false; muatInitNaskah(true).catch(() => {}); }
+    if (basi.init) { basi.init = false; muatInitNaskah_(true).catch(() => {}); }
     return Promise.resolve(keadaan.init);
   }
   if (janjiInit) return janjiInit;
@@ -108,8 +211,13 @@ function tandaiMemuat(kunci, nilai) {
 
 export function muatBab(kode, paksa) {
   if (!kode) return Promise.resolve(null);
+  if (paksa) return muatBab_(kode, true);
+  return tunggu().then(() => muatBab_(kode, false));
+}
+
+function muatBab_(kode, paksa) {
   if (keadaan.bab[kode] && !paksa) {
-    if (basi.bab[kode]) { delete basi.bab[kode]; muatBab(kode, true).catch(() => {}); }
+    if (basi.bab[kode]) { delete basi.bab[kode]; muatBab_(kode, true).catch(() => {}); }
     return Promise.resolve(true);
   }
   const k = 'bab:' + kode;
@@ -127,6 +235,10 @@ export function muatBab(kode, paksa) {
 }
 
 export function muatPasal(nomor) {
+  return tunggu().then(() => muatPasal_(nomor));
+}
+
+function muatPasal_(nomor) {
   const n = Number(nomor);
   if (!n && n !== 0) return Promise.resolve(null);
   if (keadaan.pasal[n]) return Promise.resolve(keadaan.pasal[n]);
@@ -140,8 +252,13 @@ export function muatPasal(nomor) {
 }
 
 export function muatTelaah(paksa) {
+  if (paksa) return muatTelaah_(true);
+  return tunggu().then(() => muatTelaah_(false));
+}
+
+function muatTelaah_(paksa) {
   if (keadaan.telaah && !paksa) {
-    if (basi.telaah) { basi.telaah = false; muatTelaah(true).catch(() => {}); }
+    if (basi.telaah) { basi.telaah = false; muatTelaah_(true).catch(() => {}); }
     return Promise.resolve(keadaan.telaah);
   }
   if (janjiTelaah) return janjiTelaah;
@@ -167,6 +284,10 @@ export function muatYatim(paksa) {
  * hasilnya mengisi salinan per kutipan sehingga klik kutipan tidak perlu menunggu.
  */
 export function muatDasarHukumPasal(pasal) {
+  return tunggu().then(() => (hukumLengkap ? true : (janjiPaket.h ? janjiPaket.h.then(() => (hukumLengkap ? true : muatDasarHukumPasal_(pasal))) : muatDasarHukumPasal_(pasal))));
+}
+
+function muatDasarHukumPasal_(pasal) {
   const n = Number(pasal);
   if (!n) return Promise.resolve(null);
   const kunci = 'dhp:' + n;
@@ -189,6 +310,9 @@ export async function muatDasarHukum(q) {
   const k = String(q || '').trim();
   if (!k) return null;
   if (keadaan.hukum[k]) return keadaan.hukum[k];
+  await tunggu();
+  if (janjiPaket.h) await janjiPaket.h.catch(() => null);
+  if (keadaan.hukum[k]) return keadaan.hukum[k];
   // Bila pengambilan satu pasal sedang berjalan, tunggu itu dulu daripada membuka permintaan kedua.
   const berjalan = Object.keys(janji).filter((x) => x.indexOf('dhp:') === 0).map((x) => janji[x]);
   if (berjalan.length) {
@@ -205,6 +329,15 @@ export async function muatDasarHukum(q) {
 
 /** Dipanggil tombol Refresh global sesudah cache server dibersihkan. */
 export async function segarkanNaskah() {
+  // v5.6: Refresh = paket disusun ulang dari Sheet. Bila paket gagal, dipakai cara lama per bagian.
+  try {
+    await Promise.all([ambilPaket('n', true), ambilPaket('h', true)]);
+    if (keadaan.init) return;
+  } catch (e) { /* lanjut ke cara lama */ }
+  return segarkanNaskahLama();
+}
+
+async function segarkanNaskahLama() {
   const adaInit = !!keadaan.init;
   const adaTelaah = !!keadaan.telaah;
   const adaYatim = !!keadaan.yatim;
@@ -263,7 +396,8 @@ function rekapUlang() {
 /**
  * @param {Object} muatan {idJejak, id25?, id26?, status?, alasan?, dialihkan?, dikonfirmasi?, oleh?}
  */
-export async function simpanJejak(muatan) {
+async function simpanJejak_(muatan) {
+  catatUbahan();
   let sebelum = null;
   Object.keys(keadaan.pasal).forEach((n) => {
     const j = (keadaan.pasal[n].jejak || []).find((x) => x.id === muatan.idJejak);
@@ -300,7 +434,8 @@ export async function simpanJejak(muatan) {
  * Putusan atas ayat tanpa urusan (Lampiran Telaah). Optimistis seperti simpanJejak.
  * @param {Object} muatan {id26, putusan, alasan, urusan?, oleh?}
  */
-export async function simpanPutusan(muatan) {
+async function simpanPutusan_(muatan) {
+  catatUbahan();
   const sebelumY = keadaan.yatim;
   const sebelumT = keadaan.telaah;
   const baris = { putusan: muatan.putusan, alasan: muatan.alasan, urusan: muatan.urusan || '', oleh: muatan.oleh || '' };
@@ -328,7 +463,8 @@ export async function simpanPutusan(muatan) {
  * v5.4: putusan "Bukan kembar" atas satu pasangan dugaan ayat kembar. Pasangan langsung hilang dari daftar.
  * @param {Object} muatan {a, b, alasan, oleh?}
  */
-export async function simpanKembar(muatan) {
+async function simpanKembar_(muatan) {
+  catatUbahan();
   const sebelum = keadaan.telaah;
   const buang = (t) => {
     const sama = (x, y) => (x === muatan.a && y === muatan.b) || (x === muatan.b && y === muatan.a);
@@ -365,20 +501,23 @@ function pasangRedaksi(nPasal, r) {
  * Menyimpan atau mengubah usulan redaksi satu ayat. Tidak optimistis: layar berubah sesudah backend menerima.
  * @param {Object} muatan {id26, lama, baru, alasan, oleh}
  */
-export async function simpanRedaksi(muatan) {
+async function simpanRedaksi_(muatan) {
+  catatUbahan();
   const hasil = await api.saveRedaksi(muatan);
   pasangRedaksi(pasalDariId(hasil.id26 || muatan.id26), hasil);
   return hasil;
 }
 
-export async function batalRedaksi(usulan, oleh) {
+async function batalRedaksi_(usulan, oleh) {
+  catatUbahan();
   const hasil = await api.saveRedaksi({ idUsulan: usulan.id, id26: usulan.id26, batal: true, oleh: oleh || '' });
   pasangRedaksi(pasalDariId(usulan.id26), Object.assign({}, usulan, { status: 'DIBATALKAN' }));
   return hasil;
 }
 
 /** Menerapkan usulan ke Google Doc; bunyi ayat di layar diganti dengan hasil dari backend. */
-export async function terapkanRedaksi(usulan, oleh) {
+async function terapkanRedaksi_(usulan, oleh) {
+  catatUbahan();
   const hasil = await api.terapkanRedaksi({ idUsulan: usulan.id, oleh: oleh || '' });
   const n = pasalDariId(usulan.id26);
   const p = keadaan.pasal[n];
@@ -395,6 +534,11 @@ export async function terapkanRedaksi(usulan, oleh) {
 /* ------------------------------------------------------------ Telaah v5.3 */
 
 function muatSekali(kunci, fn, medan, paksa) {
+  if (paksa) return muatSekali_(kunci, fn, medan, true);
+  return tunggu().then(() => muatSekali_(kunci, fn, medan, false));
+}
+
+function muatSekali_(kunci, fn, medan, paksa) {
   if (keadaan[medan] && !paksa) return Promise.resolve(keadaan[medan]);
   if (janji[kunci]) return janji[kunci];
   janji[kunci] = fn()
@@ -410,15 +554,20 @@ export function muatTurunan(paksa) { return muatSekali('turunan', api.naskahTuru
 
 /** v5.5: bunyi seluruh ayat untuk pencarian; dari salinan peramban bila ada, diperbarui sekali di latar. */
 export function muatTeks() {
+  return tunggu().then(() => muatTeks_());
+}
+
+function muatTeks_() {
   if (keadaan.teks) {
-    if (basi.teks) { basi.teks = false; muatSekali('teks', api.naskahTeks, 'teks', true).catch(() => {}); }
+    if (basi.teks) { basi.teks = false; muatSekali_('teks', api.naskahTeks, 'teks', true).catch(() => {}); }
     return Promise.resolve(keadaan.teks);
   }
-  return muatSekali('teks', api.naskahTeks, 'teks');
+  return muatSekali_('teks', api.naskahTeks, 'teks');
 }
 
 /** v5.5: simpan dokumen turunan, lalu baca ulang daftar (pencocokan dasar pasal dihitung server). */
-export async function simpanTurunan(muatan) {
+async function simpanTurunan_(muatan) {
+  catatUbahan();
   const hasil = await api.saveTurunan(muatan);
   await muatTurunan(true);
   return hasil;
@@ -447,7 +596,8 @@ function perbaruiLuar(cocok, patch) {
 }
 
 /** v5.5: satu putusan untuk seluruh ayat tanpa urusan pada satu pasal (tab 09, ID "PASAL n"). */
-export async function simpanPutusanPasal(muatan) {
+async function simpanPutusanPasal_(muatan) {
+  catatUbahan();
   const h = await api.savePutusanPasal(muatan);
   perbaruiLuar((x) => x.j !== 'dihapus' && Number(x.pasal) === Number(muatan.pasal),
     { pu: { putusan: h.putusan, alasan: h.alasan, urusan: h.urusan, oleh: h.oleh, diperbarui: h.diperbarui } });
@@ -455,14 +605,15 @@ export async function simpanPutusanPasal(muatan) {
 }
 
 /** Putusan atas satu ayat 2026 pada daftar "Muatan di luar peta" (disimpan ke tab 09). */
-export async function simpanPutusanLuar(muatan) {
+async function simpanPutusanLuar_(muatan) {
   const hasil = await simpanPutusan(muatan);
   perbaruiLuar(muatan.id26, { pu: { putusan: hasil.putusan, alasan: hasil.alasan, urusan: hasil.urusan, oleh: hasil.oleh, diperbarui: hasil.diperbarui } });
   return hasil;
 }
 
 /** "Setuju dihapus" untuk ayat 2025: jejaknya dikonfirmasi beserta alasan (tab 07). */
-export async function konfirmasiHapusLuar(x, alasan, oleh) {
+async function konfirmasiHapusLuar_(x, alasan, oleh) {
+  catatUbahan();
   const hasil = await api.saveJejak({ idJejak: x.jejak.id, dikonfirmasi: true, alasan, oleh: oleh || '' });
   perbaruiLuar(x.id, { jejak: Object.assign({}, x.jejak, { dikonfirmasi: true, alasan }) });
   // Salinan pasal dibuang supaya jejaknya dibaca ulang saat dibuka.
@@ -473,7 +624,8 @@ export async function konfirmasiHapusLuar(x, alasan, oleh) {
 }
 
 /** Hasil pembahasan bunyi naskah per urusan (tab 12). */
-export async function simpanHasilRapat(muatan) {
+async function simpanHasilRapat_(muatan) {
+  catatUbahan();
   const hasil = await api.saveHasilRapat(muatan);
   const lama = keadaan.hasilRapat || { hasil: {}, pilihan: [] };
   const peta = Object.assign({}, lama.hasil);
@@ -482,3 +634,29 @@ export async function simpanHasilRapat(muatan) {
   set({ hasilRapat: Object.assign({}, lama, { hasil: peta }) });
   return hasil;
 }
+
+/* ------------------------------------------------------------ v5.6: pelacak simpan */
+
+/**
+ * Setiap simpan dibungkus: selama simpan berjalan, salinan peramban tidak ditulis (nilai optimistis bisa
+ * dibatalkan bila gagal). Sesudah selesai — berhasil atau gagal — salinan ditulis dari keadaan terakhir.
+ */
+function lacak(fn) {
+  return async (...arg) => {
+    simpanBerjalan++;
+    catatUbahan();
+    try { return await fn(...arg); } finally { simpanBerjalan = Math.max(0, simpanBerjalan - 1); if (!simpanBerjalan) simpanSalinan(); }
+  };
+}
+
+export const simpanJejak = lacak(simpanJejak_);
+export const simpanPutusan = lacak(simpanPutusan_);
+export const simpanKembar = lacak(simpanKembar_);
+export const simpanRedaksi = lacak(simpanRedaksi_);
+export const batalRedaksi = lacak(batalRedaksi_);
+export const terapkanRedaksi = lacak(terapkanRedaksi_);
+export const simpanTurunan = lacak(simpanTurunan_);
+export const simpanPutusanPasal = lacak(simpanPutusanPasal_);
+export const simpanPutusanLuar = lacak(simpanPutusanLuar_);
+export const konfirmasiHapusLuar = lacak(konfirmasiHapusLuar_);
+export const simpanHasilRapat = lacak(simpanHasilRapat_);

@@ -14,7 +14,7 @@ import { buatIndeksOrgan } from './utils/langkah';
 import { saringUrusan, FILTER_KOSONG } from './utils/saring';
 import { buatKonteksAras } from './utils/aras';
 import { STORAGE_KEY } from './config';
-import { langganNaskah, ambilNaskah, muatTelaah, muatInitNaskah, segarkanNaskah } from './naskah';
+import { langganNaskah, ambilNaskah, muatTelaah, muatInitNaskah, segarkanNaskah, mulaiPaket } from './naskah';
 import { susunKerja } from './utils/telaah';
 import { navigasi } from './navigasi';
 
@@ -75,6 +75,8 @@ export default function App() {
   });
   const [naskah, setNaskah] = useState(ambilNaskah);
   useEffect(() => langganNaskah(setNaskah), []);
+  // v5.6: paket Naskah dari peramban lebih dulu, lalu pemeriksaan versi di latar.
+  useEffect(() => { mulaiPaket(); }, []);
   const [filter, setFilter] = useState(bacaFilterTersimpan);
   const [toast, setToast] = useState({ pesan: '', jenis: 'info' });
   const [bukaDiagnosa, setBukaDiagnosa] = useState(false);
@@ -375,6 +377,7 @@ export default function App() {
         onSegarkan={onSegarkan}
         onDiagnosa={() => setBukaDiagnosa(true)}
         sedangMuat={memuat || sedangRefresh}
+        memperbarui={!!naskah.memperbarui}
         kembali={null}
         menu={menu}
         ruang={ruang}

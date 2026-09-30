@@ -5,6 +5,7 @@ import { simpanJejak } from '../naskah';
 import { labelAyatLama } from '../utils/rujukan';
 import { potongSorotan } from '../utils/telaah';
 import { STORAGE_KEY } from '../config';
+import { bacaDraf, tulisDraf, hapusDraf } from '../hooks/useDraf';
 
 /**
  * Satu baris naskah (v5.1): ayat Statuta 2025 · jejak · ayat rancangan 2026 · dasar perubahan ayat.
@@ -50,6 +51,7 @@ export default function BarisJejak({
         {jejak && !jejak.dikonfirmasi ? <span className="tanda-usulan">usulan</span> : null}
         {jejak && jejak.dikonfirmasi ? <span className="tanda-konfirmasi">✓ dikonfirmasi</span> : null}
         {wajib ? <span className="tanda-awas">perlu alasan</span> : null}
+        {jejak && bacaDraf('jejak:' + jejak.id) !== undefined ? <span className="tanda-awas" title="Buka untuk menyimpan ulang">belum tersimpan</span> : null}
       </div>
 
       <div className="jj-sel jj-kanan">
@@ -149,15 +151,18 @@ function perluAlasan(cfg, status) {
 /* ================================================================ PANEL SUNTING */
 
 function PanelJejak({ jejak, pasal, cfg, init, onTutup, onGalat }) {
-  const [draf, setDraf] = useState(() => salin(jejak));
-  const [keadaan, setKeadaan] = useState('diam');  // diam | menunggu | menyimpan | tersimpan | galat
-  const [pesan, setPesan] = useState('');
+  // v5.6: perubahan yang belum tersimpan disimpan sebagai draf di peramban dan dipulihkan saat panel dibuka lagi.
+  const kunciDraf = 'jejak:' + jejak.id;
+  const [draf, setDraf] = useState(() => { const d = bacaDraf(kunciDraf); return d === undefined ? salin(jejak) : Object.assign(salin(jejak), d); });
+  const [keadaan, setKeadaan] = useState(() => (bacaDraf(kunciDraf) === undefined ? 'diam' : 'galat'));  // diam | menunggu | menyimpan | tersimpan | galat
+  const [pesan, setPesan] = useState(() => (bacaDraf(kunciDraf) === undefined ? '' : 'Perubahan yang belum tersimpan dipulihkan.'));
   const tunda = useRef(null);
   const terkirim = useRef(salin(jejak));
   const jeda = Number(cfg.jedaSimpanMs) > 0 ? Number(cfg.jedaSimpanMs) : 800;
 
   useEffect(() => {
-    if (keadaan === 'menunggu' || keadaan === 'menyimpan') return;
+    // v5.6: sesudah simpan gagal, ketikan tidak ditimpa nilai lama; pengguna memilih Simpan ulang.
+    if (keadaan === 'menunggu' || keadaan === 'menyimpan' || keadaan === 'galat') return;
     setDraf(salin(jejak));
     terkirim.current = salin(jejak);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -168,18 +173,19 @@ function PanelJejak({ jejak, pasal, cfg, init, onTutup, onGalat }) {
     ['id25', 'id26', 'status', 'alasan', 'dialihkan', 'dikonfirmasi'].forEach((k) => {
       if (d[k] !== terkirim.current[k]) muatan[k] = d[k];
     });
-    if (Object.keys(muatan).length === 1) { setKeadaan('diam'); return; }
+    if (Object.keys(muatan).length === 1) { hapusDraf('jejak:' + jejak.id); setKeadaan('diam'); setPesan(''); return; }
     if (d.oleh) muatan.oleh = d.oleh;
     setKeadaan('menyimpan');
     try {
       await simpanJejak(muatan);
       terkirim.current = Object.assign({}, terkirim.current, muatan);
+      hapusDraf('jejak:' + jejak.id);
       setKeadaan('tersimpan');
       setPesan('');
     } catch (e) {
       const m = (e && e.message) || String(e);
       setKeadaan('galat');
-      setPesan(m);
+      setPesan('Gagal disimpan (' + m + '). Ketikan tetap di sini; tekan Simpan ulang.');
       if (onGalat) onGalat(m);
     }
   }, [jejak.id, onGalat]);
@@ -193,6 +199,7 @@ function PanelJejak({ jejak, pasal, cfg, init, onTutup, onGalat }) {
     if (patch.dikonfirmasi === true && !d.status) { setPesan('Pilih status lebih dulu.'); return; }
     setPesan('');
     setDraf(d);
+    tulisDraf(kunciDraf, d);
     if (patch.oleh !== undefined) { try { window.localStorage.setItem(STORAGE_KEY.OLEH, patch.oleh); } catch (e) { /* abaikan */ } }
     setKeadaan('menunggu');
     window.clearTimeout(tunda.current);
@@ -245,6 +252,7 @@ function PanelJejak({ jejak, pasal, cfg, init, onTutup, onGalat }) {
         {jejak.kemiripan !== '' && jejak.kemiripan !== undefined ? <span className="kecil">Kemiripan usulan {jejak.kemiripan}</span> : null}
         {pesan ? <span className="jj-pesan">{pesan}</span> : null}
         <span className={'jj-keadaan jj-' + keadaan}>{teksKeadaan}</span>
+        {keadaan === 'galat' ? <button type="button" className="tbl" onClick={() => kirim(draf)}>Simpan ulang</button> : null}
         <button type="button" className="tbl tbl-ringan jj-tutup" onClick={tutup}>Selesai</button>
       </div>
     </div>

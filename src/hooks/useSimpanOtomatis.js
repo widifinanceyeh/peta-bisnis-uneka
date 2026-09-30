@@ -111,7 +111,15 @@ export default function useSimpanOtomatis(kirim, jeda, onGalat) {
     if (hidupRef.current) { setStatus('bersih'); setGalat(''); }
   }, []);
 
+  /** v5.6: perubahan yang dipulihkan dari draf; ditampilkan sebagai belum tersimpan sampai Simpan ulang ditekan. */
+  const tandaiTertunda = useCallback((muatan, pesan) => {
+    if (jamRef.current) { window.clearTimeout(jamRef.current); jamRef.current = null; }
+    tertundaRef.current = muatan;
+    bekuRef.current = true;
+    if (hidupRef.current) { setStatus('galat'); setGalat(pesan || ''); }
+  }, []);
+
   const adaTertunda = () => tertundaRef.current !== null || sedangRef.current;
 
-  return { status, galat, jadwalkan, paksa, tetapkanAcuan, adaTertunda };
+  return { status, galat, jadwalkan, paksa, tetapkanAcuan, adaTertunda, tandaiTertunda };
 }

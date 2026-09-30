@@ -4,6 +4,7 @@ import KartuAras from '../components/KartuAras';
 import FormAras from '../components/FormAras';
 import PenandaSimpan from '../components/PenandaSimpan';
 import useSimpanOtomatis from '../hooks/useSimpanOtomatis';
+import { bacaDraf, tulisDraf, hapusDraf } from '../hooks/useDraf';
 import { butirMonev } from '../utils/monev';
 import { bacaAturanTuang, barisLuarStatuta } from '../utils/tuang';
 import { adaPasalAras, arasBerbeda, arasDariLama, gabungOrgan, indeksKelompok, izinTulis, jumlahArasKosong, labelKelompok, tetap } from '../utils/aras';
@@ -46,7 +47,7 @@ export default function EditorArasPage({
   const [suntingMuatan, setSuntingMuatan] = useState(false);
 
   const jeda = Number(cfg.app.JEDA_SIMPAN_MS) > 0 ? Number(cfg.app.JEDA_SIMPAN_MS) : JEDA_SIMPAN_MS;
-  const { status, galat, jadwalkan, paksa, tetapkanAcuan, adaTertunda } = useSimpanOtomatis(onSimpan, jeda, onGalat);
+  const { status, galat, jadwalkan, paksa, tetapkanAcuan, adaTertunda, tandaiTertunda } = useSimpanOtomatis(onSimpan, jeda, onGalat);
 
   const idAktifRef = useRef(null);
   const siapRef = useRef(false);
@@ -64,16 +65,22 @@ export default function EditorArasPage({
       dasarMuatan: item.dasarMuatan || '',
       alasanMuatan: item.alasanMuatan || ''
     };
-    setAras(awal.aras);
-    setDasarMuatan(awal.dasarMuatan);
-    setAlasanMuatan(awal.alasanMuatan);
+    // v5.6: perubahan yang belum tersimpan (mis. simpan gagal lalu halaman ditutup) dipulihkan dari draf.
+    const drafPeta = bacaDraf('urusan:' + item.id);
+    const pulih = drafPeta && drafPeta.id === item.id && JSON.stringify(drafPeta) !== JSON.stringify(awal) ? drafPeta : null;
+    const isi = pulih || awal;
+    if (drafPeta && !pulih) hapusDraf('urusan:' + item.id);
+    setAras(isi.aras);
+    setDasarMuatan(isi.dasarMuatan);
+    setAlasanMuatan(isi.alasanMuatan);
     setSuntingMuatan(false);
-    setStatusBahasan(awal.statusBahasan);
-    setPenuangan(awal.penuangan);
-    setCatatan(awal.catatan);
-    setOleh(awal.oleh);
-    setTanggal(awal.tanggal);
+    setStatusBahasan(isi.statusBahasan);
+    setPenuangan(isi.penuangan);
+    setCatatan(isi.catatan);
+    setOleh(isi.oleh);
+    setTanggal(isi.tanggal);
     tetapkanAcuan(awal);
+    if (pulih) tandaiTertunda(pulih, 'Perubahan yang belum tersimpan dipulihkan.');
     idAktifRef.current = item.id;
     window.scrollTo(0, 0);
     const t = window.setTimeout(() => { siapRef.current = true; }, 0);
@@ -92,8 +99,14 @@ export default function EditorArasPage({
     if (hanya2025) return;
     if (!siapRef.current) return;
     if (idAktifRef.current !== item.id) return;
+    tulisDraf('urusan:' + item.id, muatan);
     jadwalkan(muatan);
   }, [muatan, jadwalkan, item.id, hanya2025]);
+
+  // v5.6: draf dilepas begitu tersimpan di sheet.
+  useEffect(() => {
+    if (status === 'tersimpan' && idAktifRef.current) hapusDraf('urusan:' + idAktifRef.current);
+  }, [status]);
 
   useEffect(() => {
     if (!flushRef) return undefined;
@@ -284,7 +297,7 @@ export default function EditorArasPage({
           <button className="tbl tbl-ringan" onClick={() => pindah(sesudah)} disabled={!sesudah}
                   title={sesudah ? 'Urusan ' + sesudah.id + ' — ' + sesudah.urusan : 'Sudah di urusan terakhir'}>›</button>
         </div>
-        <PenandaSimpan status={status} galat={galat} />
+        <PenandaSimpan status={status} galat={galat} onUlang={() => paksa()} />
       </div>
 
       <div className="rincian-kepala">

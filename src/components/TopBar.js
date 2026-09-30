@@ -6,8 +6,9 @@ import { APP_VERSION } from '../config';
  * Rapat / Kerja yang berlaku untuk seluruh aplikasi. Angka pekerjaan tidak lagi tampil di bilah atas;
  * semuanya dikumpulkan pada Daftar kerja (ruang Kerja). Label menu dibaca dari Cfg_App.
  * Versi 5.4: Refresh, Diagnosa, dan nomor versi dipindah ke satu menu ⋯.
+ * Versi 5.6: penanda kecil "memperbarui…" selama paket data diunduh di latar.
  */
-export default function TopBar({ judul, subJudul, onSegarkan, onDiagnosa, sedangMuat, kembali, menu, ruang, onRuang }) {
+export default function TopBar({ judul, subJudul, onSegarkan, onDiagnosa, sedangMuat, kembali, menu, ruang, onRuang, memperbarui }) {
   const [lain, setLain] = useState(false);
   useEffect(() => {
     if (!lain) return undefined;
@@ -40,6 +41,7 @@ export default function TopBar({ judul, subJudul, onSegarkan, onDiagnosa, sedang
         ) : null}
       </div>
       <div className="topbar-kanan">
+        {memperbarui ? <span className="topbar-perbarui" role="status">memperbarui…</span> : null}
         {onRuang ? (
           <div className="topbar-ruang" role="group" aria-label="Ruang">
             <button type="button" className={ruang === 'rapat' ? 'aktif' : ''} onClick={() => onRuang('rapat')}
