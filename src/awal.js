@@ -191,6 +191,7 @@ export function mulai() {
     keadaan = Object.assign({}, keadaan, snap, { memuat: false, dariSnapshot: true, koneksi: 'menyambung' });
     beritahu();
   }
+  terakhirPeriksa = Date.now();   // v5.6.1: pemeriksaan versi tidak langsung memicu init kedua saat dibuka
   muatInit(false);
 
   const periksa = () => {

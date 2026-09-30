@@ -62,7 +62,8 @@ let dimulai = false;
 let janjiAwal = null;
 let terakhirCek = 0;
 let jmlPerbarui = 0;
-let simpanBerjalan = 0;       // simpan yang belum selesai: salinan peramban ditunda agar nilai optimistis tidak tersimpan
+let simpanBerjalan = 0;
+let adaUbahanLokal = false;   // simpan berhasil dari layar ini yang belum tercakup paket server       // simpan yang belum selesai: salinan peramban ditunda agar nilai optimistis tidak tersimpan
 
 function perbarui(naik) {
   jmlPerbarui = Math.max(0, jmlPerbarui + (naik ? 1 : -1));
@@ -108,26 +109,29 @@ function simpanSalinan() {
   }, 2000);
 }
 
-/** Satu paket ('n' naskah | 'h' hukum). paksa: abaikan versi lokal dan minta disusun ulang (Refresh). */
+/**
+ * Satu paket ('n' naskah | 'h' hukum). paksa: abaikan versi lokal dan minta disusun ulang (Refresh).
+ * v5.6.1: peramban tidak lagi meminta server menyusun paket (kecuali Refresh). Bila server hanya punya
+ * paket terakhir (basi), paket itu dipakai hanya bila lebih baru daripada salinan lokal dan tidak ada
+ * perubahan dari layar ini yang belum masuk paket; versi terbaru diambil pada pemeriksaan berikutnya.
+ */
 function ambilPaket(j, paksa, tampak) {
   if (janjiPaket[j]) return janjiPaket[j];
   const tanda = !!(tampak || paksa || (j === 'n' ? !keadaan.init : !hukumLengkap));
   if (tanda) perbarui(true);
   janjiPaket[j] = (async () => {
-    let punya = paksa ? '' : paketV[j];
-    let bangun = !!paksa;
-    for (let putaran = 0; putaran < 3; putaran++) {
-      const awal = ubahan;
-      const d = await api.paket(j, punya, bangun);
-      if (!d || d.sama) return false;
-      if (j === 'n' && ubahan !== awal) { punya = ''; bangun = true; continue; }   // ada simpan selama menunggu
-      if (j === 'n') terapkanPaket(d.isi); else terapkanHukum(d.isi);
-      paketV[j] = d.v;
-      tulisSimpanan('paket-' + j, { v: d.v, isi: d.isi, disimpan: Date.now() });
-      if (!d.basi) return true;
-      punya = d.v; bangun = true;
-      if (!tanda) { perbarui(true); }   // paket basi: penyusunan versi terbaru ditampilkan sebagai memperbarui
+    const awal = ubahan;
+    const d = await api.paket(j, paksa ? '' : paketV[j], !!paksa);
+    if (!d || d.sama || d.kosong || !d.isi) return false;
+    if (j === 'n' && ubahan !== awal) return false;   // ada simpan selama menunggu: tunggu pemeriksaan berikut
+    if (d.basi) {
+      const lebihBaru = !paketV[j] || Number(d.v) > Number(paketV[j]);
+      if (!lebihBaru || (j === 'n' && adaUbahanLokal && keadaan.init)) return false;
     }
+    if (j === 'n') terapkanPaket(d.isi); else terapkanHukum(d.isi);
+    paketV[j] = d.v;
+    if (j === 'n' && !d.basi) adaUbahanLokal = false;
+    tulisSimpanan('paket-' + j, { v: d.v, isi: d.isi, disimpan: Date.now() });
     return true;
   })().finally(() => { delete janjiPaket[j]; if (tanda) perbarui(false); });
   return janjiPaket[j];
@@ -645,7 +649,7 @@ function lacak(fn) {
   return async (...arg) => {
     simpanBerjalan++;
     catatUbahan();
-    try { return await fn(...arg); } finally { simpanBerjalan = Math.max(0, simpanBerjalan - 1); if (!simpanBerjalan) simpanSalinan(); }
+    try { const h = await fn(...arg); adaUbahanLokal = true; return h; } finally { simpanBerjalan = Math.max(0, simpanBerjalan - 1); if (!simpanBerjalan) simpanSalinan(); }
   };
 }
 

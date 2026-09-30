@@ -229,7 +229,7 @@ export const api = {
   // v5.6 (Paket.gs): j = 'n' naskah | 'h' dasar hukum; v = versi yang sudah dimiliki; bangun = susun sekarang.
   paketVersi: () => apiGet('paketVersi', null, { batas: 15000 }),
   paket: (j, v, bangun) => apiGet('paket', { j, v: v || '', bangun: bangun ? '1' : '0' },
-    bangun ? { batas: 150000, percobaan: 1 } : { batas: 30000 }),
+    bangun ? { batas: 150000, percobaan: 1 } : { batas: 15000 }),   // v5.6.1: tertahan > 15 dtk langsung diulang
   saveTurunan: (payload) => simpanDenganCadanganAksi(Object.assign({ action: 'saveTurunan' }, payload), 'saveTurunan'),
   savePutusanPasal: (payload) => simpanDenganCadanganAksi(Object.assign({ action: 'savePutusanPasal' }, payload), 'savePutusanPasal'),
   saveKembar: (payload) => simpanDenganCadanganAksi(Object.assign({ action: 'saveKembar' }, payload), 'saveKembar'),   // v5.4
