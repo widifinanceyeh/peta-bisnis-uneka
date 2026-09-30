@@ -14,9 +14,12 @@ import useDraf from '../hooks/useDraf';
  * v5.5: tanpa butir "urusan belum dibahas rapat" dan "pasal tanpa dasar hukum"; jejak hanya ayat 2025 yang dihapus;
  * muatan di luar peta diputus per pasal.
  */
-export default function DaftarKerjaPage({ onBukaTelaah, onBukaNaskah, urusan, onGalat }) {
+export default function DaftarKerjaPage({ onBukaTelaah, onBukaNaskah, urusan, onGalat, pilih: pilihProp, onPilih }) {
   const [n, setN] = useState(ambilNaskah);
-  const [pilih, setPilih] = useState('');
+  // v5.8: butir terpilih dipegang App (riwayat, tombol Kembali, posisi terakhir).
+  const [pilihLokal, setPilihLokal] = useState('');
+  const pilih = onPilih ? (pilihProp || '') : pilihLokal;
+  const setPilih = onPilih || setPilihLokal;
   useEffect(() => langganNaskah(setN), []);
   useEffect(() => {
     muatInitNaskah().catch(() => {});

@@ -7,6 +7,7 @@ import { APP_VERSION } from '../config';
  * semuanya dikumpulkan pada Daftar kerja (ruang Kerja). Label menu dibaca dari Cfg_App.
  * Versi 5.4: Refresh, Diagnosa, dan nomor versi dipindah ke satu menu ⋯.
  * Versi 5.6: penanda kecil "memperbarui…" selama paket data diunduh di latar.
+ * Versi 5.8: tombol Kembali (satu langkah riwayat); tampil hanya bila ada langkah sebelumnya di dalam aplikasi.
  */
 export default function TopBar({ judul, subJudul, onSegarkan, onDiagnosa, sedangMuat, kembali, menu, ruang, onRuang, memperbarui }) {
   const [lain, setLain] = useState(false);
@@ -21,8 +22,8 @@ export default function TopBar({ judul, subJudul, onSegarkan, onDiagnosa, sedang
     <header className="topbar">
       <div className="topbar-kiri">
         {kembali ? (
-          <button className="tbl tbl-ringan" onClick={kembali} aria-label="Kembali">
-            &larr; Kembali
+          <button type="button" className="topbar-kembali" onClick={kembali} aria-label="Kembali ke langkah sebelumnya" title="Kembali ke langkah sebelumnya">
+            <span aria-hidden="true">&larr;</span><span className="topbar-kembali-teks">Kembali</span>
           </button>
         ) : null}
         <div className="topbar-teks">

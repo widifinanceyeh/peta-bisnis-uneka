@@ -24,16 +24,43 @@ const TelaahPage = lazy(() => import('./pages/TelaahPage'));
 const DaftarKerjaPage = lazy(() => import('./pages/DaftarKerjaPage'));
 const TurunanPage = lazy(() => import('./pages/TurunanPage'));
 
-/** Halaman awal dari alamat: #naskah-45, #naskah, #telaah, #telaah-A1.1; selain itu peta. */
+/**
+ * Halaman awal dari alamat: #naskah-45, #naskah, #telaah, #telaah-A1.1, #turunan-DT02, #kerja-kode, #urusan-A1.1;
+ * selain itu peta.
+ */
 function halamanDariHash() {
-  const h = decodeURIComponent(String(window.location.hash || ''));
+  let h = '';
+  try { h = decodeURIComponent(String(window.location.hash || '')); } catch (e) { h = String(window.location.hash || ''); }
   const m = /^#naskah(?:-(\d+))?$/.exec(h);
   if (m) return { halaman: 'naskah', pasal: m[1] ? Number(m[1]) : null };
   const t = /^#telaah(?:-(.+))?$/.exec(h);
   if (t) return { halaman: 'telaah', pasal: null, telaah: t[1] || 'ring' };
-  if (h === '#kerja') return { halaman: 'kerja', pasal: null };
-  if (h === '#turunan') return { halaman: 'turunan', pasal: null };
+  const k = /^#kerja(?:-(.+))?$/.exec(h);
+  if (k) return { halaman: 'kerja', pasal: null, kerja: k[1] || '' };
+  const d = /^#turunan(?:-(.+))?$/.exec(h);
+  if (d) return { halaman: 'turunan', pasal: null, turunan: d[1] || '' };
+  const u = /^#urusan-(.+)$/.exec(h);
+  if (u) return { halaman: 'peta', pasal: null, id: u[1] };
   return { halaman: 'peta', pasal: null };
+}
+
+/**
+ * v5.8: dibuka tanpa alamat halaman (tautan utama aplikasi) = lanjut dari posisi terakhir di perangkat ini.
+ * Alamat yang dibawa tautan (mis. #naskah-45 kiriman rekan) selalu didahulukan.
+ */
+function halamanAwal() {
+  try {
+    if (!window.location.hash) {
+      const s = window.localStorage.getItem(STORAGE_KEY.POSISI);
+      if (s && /^#[a-z]/.test(s)) window.history.replaceState(window.history.state, '', s);
+    }
+  } catch (e) { /* abaikan */ }
+  return halamanDariHash();
+}
+
+/** v5.8: nomor langkah riwayat di dalam aplikasi; 0 = halaman pertama yang dibuka. */
+function langkahKini() {
+  try { const s = window.history.state; return s && typeof s.n === 'number' ? s.n : 0; } catch (e) { return 0; }
 }
 
 /**
@@ -64,11 +91,26 @@ export default function App() {
   const { cfg, memuat: memuatCfg, galat: galatCfg, muatUlang: muatCfg } = useBootstrap();
   const { urusan, format, pilihan, kelompok, memuat: memuatData, menyegarkan, galat: galatData, segarkan, simpan } = useData();
 
-  const [idTerpilih, setIdTerpilih] = useState(null);
-  const awalHalaman = useRef(halamanDariHash()).current;
-  const [halaman, setHalaman] = useState(awalHalaman.halaman);
-  const [pasalNaskah, setPasalNaskah] = useState(awalHalaman.pasal);
-  const [selTelaah, setSelTelaah] = useState(awalHalaman.telaah || 'ring');
+  const awalHalaman = useRef(null);
+  if (!awalHalaman.current) awalHalaman.current = halamanAwal();
+  const awal = awalHalaman.current;
+  const [idTerpilih, setIdTerpilih] = useState(awal.id || null);
+  const [halaman, setHalaman] = useState(awal.halaman);
+  const [pasalNaskah, setPasalNaskah] = useState(awal.pasal);
+  const [selTelaah, setSelTelaah] = useState(awal.telaah || 'ring');
+  const [selTurunan, setSelTurunan] = useState(awal.turunan || '');   // v5.8: dokumen turunan terpilih
+  const [selKerja, setSelKerja] = useState(awal.kerja || '');         // v5.8: butir Periksa terpilih
+  const [langkah, setLangkah] = useState(langkahKini);               // v5.8: tombol Kembali pada bilah atas
+
+  /** Riwayat peramban: setiap langkah di dalam aplikasi diberi nomor (n) supaya tombol Kembali tahu batasnya. */
+  const dorong = useCallback((st, url) => {
+    const n = langkahKini() + 1;
+    window.history.pushState(Object.assign({}, st, { n }), '', url);
+    setLangkah(n);
+  }, []);
+  const gantiRiwayat = useCallback((st, url) => {
+    window.history.replaceState(Object.assign({}, st, { n: langkahKini() }), '', url);
+  }, []);
   const [saringNaskah, setSaringNaskah] = useState('semua');
   const [ruang, setRuangState] = useState(() => {
     try { return window.localStorage.getItem(STORAGE_KEY.RUANG) === 'kerja' ? 'kerja' : 'rapat'; } catch (e) { return 'rapat'; }
@@ -126,7 +168,10 @@ export default function App() {
 
   // Tombol Back peramban. Perubahan tertunda tetap dikirim lebih dulu.
   useEffect(() => {
-    try { window.history.replaceState({ id: null, halaman: awalHalaman.halaman, pasal: awalHalaman.pasal, telaah: awalHalaman.telaah || null }, '', window.location.hash || '#peta'); } catch (e) { /* abaikan */ }
+    try {
+      window.history.replaceState({ id: awal.id || null, halaman: awal.halaman, pasal: awal.pasal, telaah: awal.telaah || null,
+        turunan: awal.turunan || null, kerja: awal.kerja || null, n: langkahKini() }, '', window.location.hash || '#peta');
+    } catch (e) { /* abaikan */ }
     const onPop = (e) => {
       // Alamat yang diketik langsung (mis. #naskah-45) tidak membawa state: baca dari hash.
       const st = e.state || Object.assign({ id: null }, halamanDariHash());
@@ -135,6 +180,9 @@ export default function App() {
         setHalaman(st.halaman || 'peta');
         if (st.pasal) setPasalNaskah(st.pasal);
         if (st.telaah) setSelTelaah(st.telaah);
+        if (st.turunan !== undefined) setSelTurunan(st.turunan || '');
+        if (st.kerja !== undefined) setSelKerja(st.kerja || '');
+        setLangkah(typeof st.n === 'number' ? st.n : 0);
       };
       const kirim = flushRef.current;
       if (kirim) { Promise.resolve(kirim()).then(terapkan); }
@@ -174,14 +222,14 @@ export default function App() {
   const bukaRincian = useCallback((u) => {
     setIdTerpilih(u.id);
     setHalaman('peta');
-    window.history.pushState({ id: u.id, halaman: 'peta' }, '', '#urusan-' + u.id);
-  }, []);
+    dorong({ id: u.id, halaman: 'peta' }, '#urusan-' + u.id);
+  }, [dorong]);
 
   const kembaliKePeta = useCallback(() => {
     setIdTerpilih(null);
     setHalaman('peta');
-    window.history.pushState({ id: null, halaman: 'peta' }, '', '#peta');
-  }, []);
+    dorong({ id: null, halaman: 'peta' }, '#peta');
+  }, [dorong]);
 
   /** Perubahan editor yang masih menunggu dikirim lebih dulu sebelum berpindah halaman. */
   const sesudahSimpan = useCallback(async (fn) => {
@@ -196,16 +244,16 @@ export default function App() {
       setHalaman('naskah');
       if (pasal) setPasalNaskah(Number(pasal));
       const p = pasal || null;
-      window.history.pushState({ id: null, halaman: 'naskah', pasal: p }, '', p ? '#naskah-' + p : '#naskah');
+      dorong({ id: null, halaman: 'naskah', pasal: p }, p ? '#naskah-' + p : '#naskah');
     });
-  }, [sesudahSimpan]);
+  }, [sesudahSimpan, dorong]);
 
   const pilihPasal = useCallback((pasal, ganti) => {
     setPasalNaskah(Number(pasal));
     const st = { id: null, halaman: 'naskah', pasal: Number(pasal) };
-    if (ganti) window.history.replaceState(st, '', '#naskah-' + pasal);
-    else window.history.pushState(st, '', '#naskah-' + pasal);
-  }, []);
+    if (ganti) gantiRiwayat(st, '#naskah-' + pasal);
+    else dorong(st, '#naskah-' + pasal);
+  }, [dorong, gantiRiwayat]);
 
   const bukaTelaah = useCallback((sel) => {
     sesudahSimpan(() => {
@@ -213,14 +261,14 @@ export default function App() {
       setIdTerpilih(null);
       setHalaman('telaah');
       setSelTelaah(t);
-      window.history.pushState({ id: null, halaman: 'telaah', telaah: t }, '', t === 'ring' ? '#telaah' : '#telaah-' + encodeURIComponent(t));
+      dorong({ id: null, halaman: 'telaah', telaah: t }, t === 'ring' ? '#telaah' : '#telaah-' + encodeURIComponent(t));
     });
-  }, [sesudahSimpan, selTelaah]);
+  }, [sesudahSimpan, selTelaah, dorong]);
 
   const pilihTelaah = useCallback((t) => {
     setSelTelaah(t);
-    window.history.pushState({ id: null, halaman: 'telaah', telaah: t }, '', t === 'ring' ? '#telaah' : '#telaah-' + encodeURIComponent(t));
-  }, []);
+    dorong({ id: null, halaman: 'telaah', telaah: t }, t === 'ring' ? '#telaah' : '#telaah-' + encodeURIComponent(t));
+  }, [dorong]);
 
   /** Dari Daftar kerja: membuka halaman Naskah dengan saringan pasal tertentu. */
   const bukaSaringNaskah = useCallback((saring, pasal) => {
@@ -232,18 +280,33 @@ export default function App() {
     sesudahSimpan(() => {
       setIdTerpilih(null);
       setHalaman('kerja');
-      window.history.pushState({ id: null, halaman: 'kerja' }, '', '#kerja');
+      dorong({ id: null, halaman: 'kerja', kerja: selKerja }, selKerja ? '#kerja-' + encodeURIComponent(selKerja) : '#kerja');
     });
-  }, [sesudahSimpan]);
+  }, [sesudahSimpan, dorong, selKerja]);
 
   /** v5.5: halaman Dokumen Turunan (kedua ruang; disunting hanya di ruang Kerja). */
   const bukaTurunan = useCallback(() => {
     sesudahSimpan(() => {
       setIdTerpilih(null);
       setHalaman('turunan');
-      window.history.pushState({ id: null, halaman: 'turunan' }, '', '#turunan');
+      dorong({ id: null, halaman: 'turunan', turunan: selTurunan }, selTurunan ? '#turunan-' + encodeURIComponent(selTurunan) : '#turunan');
     });
-  }, [sesudahSimpan]);
+  }, [sesudahSimpan, dorong, selTurunan]);
+
+  /** v5.8: dokumen turunan dan butir Periksa yang dipilih ikut tercatat di riwayat (tombol Kembali, tautan, posisi terakhir). */
+  const pilihTurunan = useCallback((id) => {
+    setSelTurunan(id);
+    dorong({ id: null, halaman: 'turunan', turunan: id }, id ? '#turunan-' + encodeURIComponent(id) : '#turunan');
+  }, [dorong]);
+  const pilihKerja = useCallback((kode) => {
+    setSelKerja(kode);
+    dorong({ id: null, halaman: 'kerja', kerja: kode }, kode ? '#kerja-' + encodeURIComponent(kode) : '#kerja');
+  }, [dorong]);
+
+  // v5.8: posisi terakhir disimpan per perangkat; dipakai bila aplikasi dibuka tanpa alamat halaman.
+  useEffect(() => {
+    try { if (window.location.hash) window.localStorage.setItem(STORAGE_KEY.POSISI, window.location.hash); } catch (e) { /* abaikan */ }
+  }, [halaman, pasalNaskah, selTelaah, idTerpilih, selTurunan, selKerja]);
 
   /** Sakelar ruang. Daftar kerja hanya ada di ruang Kerja; bila berpindah ke Rapat, kembali ke Naskah. */
   const setRuang = useCallback((r) => {
@@ -378,7 +441,7 @@ export default function App() {
         onDiagnosa={() => setBukaDiagnosa(true)}
         sedangMuat={memuat || sedangRefresh}
         memperbarui={!!naskah.memperbarui}
-        kembali={null}
+        kembali={langkah > 0 ? () => window.history.back() : null}
         menu={menu}
         ruang={ruang}
         onRuang={setRuang}
@@ -394,12 +457,13 @@ export default function App() {
         </Suspense>
       ) : halaman === 'kerja' && ruang === 'kerja' ? (
         <Suspense fallback={muatModul}>
-          <DaftarKerjaPage onBukaTelaah={bukaTelaah} onBukaNaskah={bukaSaringNaskah} urusan={urusan}
+          <DaftarKerjaPage onBukaTelaah={bukaTelaah} onBukaNaskah={bukaSaringNaskah} urusan={urusan} pilih={selKerja} onPilih={pilihKerja}
                            onGalat={(m) => setToast({ pesan: m, jenis: 'galat' })} />
         </Suspense>
       ) : halaman === 'turunan' ? (
         <Suspense fallback={muatModul}>
           <TurunanPage ruang={ruang} onBukaPasal={bukaNaskah} onBukaTelaah={bukaTelaah} onBukaUrusan={bukaUrusanId} urusan={urusan} ctx={ctx}
+                       pilih={selTurunan} onPilih={pilihTurunan}
                        onGalat={(m) => setToast({ pesan: m, jenis: 'galat' })} />
         </Suspense>
       ) : halaman === 'telaah' ? (

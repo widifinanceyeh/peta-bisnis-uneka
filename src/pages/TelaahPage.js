@@ -9,6 +9,7 @@ import { ChipOrgan } from '../components/PitaPeta';
 import { pasalId, labelAyat, KODE_TEMUAN, NAMA_TEMUAN } from '../utils/telaah';
 import { STORAGE_KEY } from '../config';
 import { RelAtas, TombolLaci } from '../components/TombolRel';
+import TombolTautan from '../components/TombolTautan';
 import useDraf from '../hooks/useDraf';
 
 /**
@@ -234,6 +235,7 @@ function Rincian({ u, h, n, ctx, idxK, kerja, rapat, pilihanRapat, onGalat, onBu
           <h2 className="nk-judul">{u.id} · {u.urusan}</h2>
           {u.monev && String(u.monev).toLowerCase() !== 'tidak' ? <span className="lencana lencana-merah">Monev {u.monev}</span> : null}
           {!kerja ? <TagRapat r={rapat} /> : null}
+          <TombolTautan alamat={'#telaah-' + encodeURIComponent(u.id)} />
           <div className="nk-pindah">
             <button type="button" className="tbl tbl-ringan" onClick={() => onGeser(-1)} aria-label="Urusan sebelumnya">‹</button>
             <button type="button" className="tbl tbl-ringan" onClick={() => onGeser(1)} aria-label="Urusan berikutnya">›</button>

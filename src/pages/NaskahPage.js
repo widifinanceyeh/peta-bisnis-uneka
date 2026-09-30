@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { langganNaskah, ambilNaskah, muatInitNaskah, muatBab, muatTelaah, muatDasarHukumPasal, muatTeks } from '../naskah';
 import { RelAtas, TombolLaci } from '../components/TombolRel';
+import TombolTautan from '../components/TombolTautan';
 import BarisJejak from '../components/BarisJejak';
 import PitaPeta, { PetaBaris } from '../components/PitaPeta';
 import PanelDasarHukum from '../components/PanelDasarHukum';
@@ -27,6 +28,18 @@ import { STORAGE_KEY } from '../config';
 function bacaLokal(k, bawaan) {
   try { const v = window.localStorage.getItem(k); return v === null ? bawaan : v; } catch (e) { return bawaan; }
 }
+/**
+ * v5.8: sidik isi pasal (bunyi ayat 2026 dan catatan) untuk tanda "berubah sejak terakhir dibuka".
+ * Hanya dihitung di peramban dari data yang sudah dimuat; tidak ada permintaan tambahan ke server.
+ */
+function sidikPasal(d) {
+  if (!d || !d.ayat26) return '';
+  const s = JSON.stringify([d.ayat26.map((a) => [a.nomor, a.teks]), d.catatan ? [d.catatan.sumber, d.catatan.perubahan, d.catatan.hukum] : null]);
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36) + '.' + s.length;
+}
+
 function tulisLokal(k, v) {
   try { window.localStorage.setItem(k, v); } catch (e) { /* abaikan */ }
 }
@@ -115,6 +128,33 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
     return s;
   }, [penanda, monevPsl]);
   const pasalTemuan = useMemo(() => pasalBerpenanda(penanda, 'temuan'), [penanda]);
+  // v5.8: pasal yang bunyi atau catatannya berubah sejak terakhir dibuka di perangkat ini.
+  const sidik = useMemo(() => {
+    const o = {};
+    Object.keys(n.pasal || {}).forEach((k) => { const x = sidikPasal(n.pasal[k]); if (x) o[k] = x; });
+    return o;
+  }, [n.pasal]);
+  const [lihat, setLihat] = useState(() => {
+    try { return JSON.parse(bacaLokal(STORAGE_KEY.LIHAT, 'null')); } catch (e) { return null; }
+  });
+  useEffect(() => {
+    if (!Object.keys(sidik).length) return;
+    setLihat((l) => {
+      const o = Object.assign({}, l || {});
+      let ubah = !l;
+      // Pasal yang baru pertama kali terbaca dijadikan patokan (tidak ditandai); pasal yang sedang dibuka dianggap sudah dilihat.
+      Object.keys(sidik).forEach((k) => { if (!(k in o)) { o[k] = sidik[k]; ubah = true; } });
+      if (pasal && sidik[pasal] && o[pasal] !== sidik[pasal]) { o[pasal] = sidik[pasal]; ubah = true; }
+      return ubah ? o : l;
+    });
+  }, [sidik, pasal]);
+  useEffect(() => { if (lihat) tulisLokal(STORAGE_KEY.LIHAT, JSON.stringify(lihat)); }, [lihat]);
+  const berubah = useMemo(() => {
+    const t = new Set();
+    if (!lihat) return t;
+    Object.keys(sidik).forEach((k) => { if (lihat[k] && lihat[k] !== sidik[k] && Number(k) !== pasal) t.add(Number(k)); });
+    return t;
+  }, [sidik, lihat, pasal]);
   const catatan = useMemo(() => ikatCatatan(data), [data]);
   const baris = useMemo(() => susunBaris(data), [data]);
   const kerja = ruang === 'kerja';
@@ -241,7 +281,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
                     {kerja && alasanPasal(d, pasalTemuan).length
                       ? <i className="nk-perlu" title={'Perlu tindakan: ' + alasanPasal(d, pasalTemuan).join(', ')} aria-label="perlu tindakan">●</i>
                       : <span />}
-                    <span className="nk-item-no">Pasal {d.pasal}</span>
+                    <span className="nk-item-no">Pasal {d.pasal}{berubah.has(d.pasal) ? <i className="nk-berubah" title="Berubah sejak terakhir dibuka" aria-label="berubah sejak terakhir dibuka">●</i> : null}</span>
                     <span className="nk-item-judul">{d.judul}</span>
                     {pasalMonev.has(d.pasal) ? <span className="tanda-m" title="Terkunci Monev">M</span> : <span />}
                   </button>
@@ -254,6 +294,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
         <div className="nk-legenda">
           {kerja ? <span><i className="nk-perlu">●</i> perlu tindakan (arahkan tetikus untuk alasannya)</span> : null}
           <span><span className="tanda-m">M</span> ditagih Monev</span>
+          {berubah.size ? <span><i className="nk-berubah">●</i> berubah sejak terakhir dibuka ({berubah.size})</span> : null}
         </div>
       </aside>
       <TombolLaci label="Daftar pasal" />
@@ -262,7 +303,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
       <main className={'nk-utama' + (kerja ? '' : ' nk-rapat')}>
         <select className="inp nk-pilih-sempit" value={pasal || ''} onChange={(e) => onPilihPasal(Number(e.target.value))}
                 aria-label="Pilih pasal">
-          {daftar.map((d) => <option key={d.pasal} value={d.pasal}>Pasal {d.pasal} · {d.judul}</option>)}
+          {daftar.map((d) => <option key={d.pasal} value={d.pasal}>{berubah.has(d.pasal) ? '● ' : ''}Pasal {d.pasal} · {d.judul}</option>)}
         </select>
 
         <div ref={kepalaRef} className={'nk-kepala5' + (ciut ? ' ciut' : '') + (ringkas ? ' ringkas' : '')}>
@@ -272,6 +313,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
             {nMonev ? <span className="lencana lencana-merah">Monev · {nMonev} butir</span> : null}
             {nMonevAda ? <span className="lencana lencana-abu" title="Butir Monev yang menurut Berita Acara sudah ada">Monev sudah ada · {nMonevAda}</span> : null}
             {kerja && perlu.length ? <span className="lencana lencana-perlu">Perlu tindakan: {perlu.join(' · ')}</span> : null}
+            {pasal ? <TombolTautan alamat={'#naskah-' + pasal} /> : null}
             <div className="nk-pindah">
               <button type="button" className="tbl tbl-ringan" onClick={() => pindah(-1)} disabled={posisi <= 0} aria-label="Pasal sebelumnya">‹</button>
               <button type="button" className="tbl tbl-ringan" onClick={() => pindah(1)} disabled={posisi >= daftar.length - 1} aria-label="Pasal berikutnya">›</button>

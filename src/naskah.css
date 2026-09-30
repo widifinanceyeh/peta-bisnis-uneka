@@ -680,3 +680,16 @@ mark.tl-organ { background: var(--kuning); color: inherit; padding: 0 1px; }
   .td-baris > .td-buang { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
   .td-dua { grid-template-columns: 1fr; }
 }
+
+/* ======================================================= v5.8 KEMBALI, SALIN TAUTAN, TANDA BERUBAH */
+.topbar-kembali {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  font-family: var(--font); font-size: var(--font-normal); color: var(--putih); background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.35); border-radius: var(--r); padding: 5px 11px; cursor: pointer; white-space: nowrap;
+}
+.topbar-kembali:hover { background: rgba(255, 255, 255, 0.2); }
+@media (max-width: 760px) { .topbar-kembali { padding: 5px 9px; } .topbar-kembali-teks { display: none; } }
+.tombol-tautan { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 3px 9px; white-space: nowrap; }
+.tombol-tautan.ok { color: #1d7359; border-color: #9fd3bd; background: #e3f4ec; }
+@media (max-width: 760px) { .tombol-tautan span { display: none; } .tombol-tautan.ok span { display: inline; } }
+.nk-berubah { color: #2b6fd8; font-style: normal; font-size: 9px; margin-left: 5px; vertical-align: 2px; }

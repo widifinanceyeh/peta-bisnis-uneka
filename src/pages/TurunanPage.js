@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { langganNaskah, ambilNaskah, muatTurunan, muatTeks, muatInitNaskah, simpanTurunan } from '../naskah';
 import { labelAyat, petaAyatUrusan } from '../utils/telaah';
 import { RelAtas, TombolLaci } from '../components/TombolRel';
+import TombolTautan from '../components/TombolTautan';
 import PitaPeta from '../components/PitaPeta';
 import { STORAGE_KEY } from '../config';
 import useDraf from '../hooks/useDraf';
@@ -26,11 +27,14 @@ function barisAwal(d) {
   return b;
 }
 
-export default function TurunanPage({ ruang, onBukaPasal, onBukaTelaah, onBukaUrusan, urusan, ctx, onGalat }) {
+export default function TurunanPage({ ruang, onBukaPasal, onBukaTelaah, onBukaUrusan, urusan, ctx, onGalat, pilih: pilihProp, onPilih }) {
   const kerja = ruang === 'kerja';
   const [n, setN] = useState(ambilNaskah);
   const [cari, setCari] = useState('');
-  const [pilih, setPilih] = useState('');
+  // v5.8: pilihan dokumen dipegang App supaya tercatat di riwayat (tombol Kembali) dan alamat (#turunan-DT02).
+  const [pilihLokal, setPilihLokal] = useState('');
+  const pilih = onPilih ? (pilihProp || '') : pilihLokal;
+  const setPilih = onPilih || setPilihLokal;
   const [pesan, setPesan] = useState({});
   useEffect(() => langganNaskah(setN), []);
   useEffect(() => {
@@ -130,7 +134,10 @@ export default function TurunanPage({ ruang, onBukaPasal, onBukaTelaah, onBukaUr
           <>
             <div className="tl-kepala">
               <div className="rincian-no">{aktif.penetap} · {aktif.id}</div>
-              <h2 className="nk-judul">{aktif.dokumen}</h2>
+              <div className="nk-judul-baris">
+                <h2 className="nk-judul">{aktif.dokumen}</h2>
+                <TombolTautan alamat={'#turunan-' + encodeURIComponent(aktif.id)} />
+              </div>
             </div>
             <div className="tl-gulir pk-isi">
               {kerja
