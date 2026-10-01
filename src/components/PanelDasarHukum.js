@@ -29,6 +29,16 @@ export default function PanelDasarHukum({ item, pasal, onTutup, onBukaPasal }) {
         <div className="blok-label">RUJUKAN PADA CATATAN NASKAH</div>
         <div className="teks-baru">{item.t}</div>
       </div>
+      {d && d.alamat && d.alamat.length > 1 ? (
+        <div className="intip-blok">
+          <div className="blok-label">ALAMAT YANG DIKUTIP ({d.alamat.length})</div>
+          <div className="chip-baris">
+            {d.alamat.map((a, i) => (
+              <span key={i} className={'dh-alamat ' + (a.ada ? 'dh-alamat-ok' : 'dh-alamat-hilang')}>{a.ada ? '✓' : '✗'} {a.teks}</span>
+            ))}
+          </div>
+        </div>
+      ) : null}
       <div className="intip-blok">
         <div className="blok-label">BUNYI ATURAN</div>
         {!q ? <div className="redup">Nama aturan tidak terbaca dari baris ini.</div>
@@ -36,6 +46,7 @@ export default function PanelDasarHukum({ item, pasal, onTutup, onBukaPasal }) {
           : !d ? <div className="intip-muat">Membaca pustaka dasar hukum…</div>
           : d.ada ? (
             <div className="dh-baris">
+              {d.alasan ? <div className="jj-pesan">{d.alasan}</div> : null}
               {d.baris.map((b, i) => (
                 <div key={i} className="dh-item"><span className="dh-label">{b[0]}</span><span className="teks-pre">{b[1]}</span></div>
               ))}

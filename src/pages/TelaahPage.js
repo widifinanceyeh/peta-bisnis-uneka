@@ -11,6 +11,7 @@ import { STORAGE_KEY } from '../config';
 import { RelAtas, TombolLaci } from '../components/TombolRel';
 import TombolTautan from '../components/TombolTautan';
 import useDraf from '../hooks/useDraf';
+import { Sakelar, TandaSelesai } from '../components/Sakelar';
 
 /**
  * Halaman Telaah (v5.4): berangkat dari urusan peta 2026, urut 59 urusan.
@@ -349,9 +350,9 @@ function Sorot({ teks, kata }) {
 
 const BELUM_TERPENUHI = ['BELUM ADA', 'SEBAGIAN'];
 
-/** v5.4: dipakai halaman Periksa. Satu sakelar: yang belum terpenuhi (bawaan) atau semua butir. */
+/** v5.4: dipakai halaman Periksa. v5.9: bawaan semua butir; sakelar ke yang belum terpenuhi. */
 export function ButirPermen({ n, onBukaPasal, onPilih, onGalat }) {
-  const [semua, setSemua] = useState(false);
+  const [semua, setSemua] = useState(true);
   useEffect(() => { muatKepatuhan().catch((e) => onGalat && onGalat((e && e.message) || String(e))); }, [onGalat]);
   const k = n.kepatuhan;
   if (!k) return <div className="nk-muat">Membaca butir Permen…</div>;
@@ -363,13 +364,7 @@ export function ButirPermen({ n, onBukaPasal, onPilih, onGalat }) {
   let grup = '';
   return (
     <>
-      <div className="tl-kepala">
-        <div className="chip-baris">
-          <button type="button" className={'pil' + (!semua ? ' aktif' : '')} onClick={() => setSemua(false)}>Belum terpenuhi {nBelum}</button>
-          <button type="button" className={'pil' + (semua ? ' aktif' : '')} onClick={() => setSemua(true)}>Semua {k.butir.length}</button>
-          <span className="kecil">Status dibaca dari tab {k.tab}.</span>
-        </div>
-      </div>
+      <Sakelar semua={semua} onSemua={setSemua} nSemua={k.butir.length} nBelum={nBelum} labelBelum="Belum terpenuhi" keterangan={'Status dibaca dari tab ' + k.tab + '.'} />
       <div className="tl-gulir">
         <table className="tl-tabel tl-beku">
           <thead><tr><th style={{ width: 100 }}>Butir</th><th>Bunyi Permen</th><th style={{ width: 190 }}>Letak di naskah 2026</th>
@@ -382,7 +377,7 @@ export function ButirPermen({ n, onBukaPasal, onPilih, onGalat }) {
                 <React.Fragment key={b.k}>
                   {kepala}
                   <tr>
-                    <td><b>{b.k}</b><div className="kecil">{String(b.s || '').split(' — ')[0]}</div></td>
+                    <td><b>{b.k}</b><div className="kecil">{String(b.s || '').split(' — ')[0]}</div><TandaSelesai ok={!belum(b)} /></td>
                     <td className="tl-kutip">{b.b}</td>
                     <td className="kecil-teks"><AlamatPasal teks={b.p} onBukaPasal={onBukaPasal} />
                       {b.patah.length ? <div className="jj-pesan">Tidak ada di naskah: {b.patah.join(', ')}</div> : null}</td>
@@ -423,11 +418,11 @@ const NAMA_JENIS = { dibawa: 'Dibawa dari 2025', baru: 'Baru di 2026', dihapus: 
  * Dipakai halaman Periksa (v5.5).
  *   jenis "luar"  : ayat 2026 tanpa urusan, dikelompokkan per pasal; satu putusan per pasal.
  *   jenis "hapus" : ayat Statuta 2025 yang jejaknya DIHAPUS; dikonfirmasi satu per satu beserta alasan.
- * Bawaan: hanya yang belum diputus.
+ * v5.9: bawaan semua; sakelar ke yang belum diputus.
  */
 export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
   const hapus = jenis === 'hapus';
-  const [belum, setBelum] = useState(true);
+  const [belum, setBelum] = useState(false);
   const [draf, setDraf] = useDraf('luar:' + (hapus ? 'hapus' : 'luar'), {});   // v5.6: draf putusan bertahan bila simpan gagal
   const [pesan, setPesan] = useState({});
   useEffect(() => { muatLuar().catch((e) => onGalat && onGalat((e && e.message) || String(e))); }, [onGalat]);
@@ -449,12 +444,7 @@ export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
     };
     return (
       <>
-        <div className="tl-kepala">
-          <div className="chip-baris">
-            <button type="button" className={'pil' + (belum ? ' aktif' : '')} onClick={() => setBelum(true)}>Belum dikonfirmasi {L.rekap.hapusBelum}</button>
-            <button type="button" className={'pil' + (!belum ? ' aktif' : '')} onClick={() => setBelum(false)}>Semua {L.rekap.dihapus}</button>
-          </div>
-        </div>
+        <Sakelar semua={!belum} onSemua={(v) => setBelum(!v)} nSemua={L.rekap.dihapus} nBelum={L.rekap.hapusBelum} labelBelum="Belum dikonfirmasi" />
         <div className="tl-gulir">
           <table className="tl-tabel tl-beku">
             <thead><tr><th style={{ width: 130 }}>Letak 2025</th><th>Bunyi Statuta 2025</th><th style={{ width: 330 }}>Putusan</th></tr></thead>
@@ -465,9 +455,10 @@ export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
                   <td className="tl-kutip teks-pre">{x.teks}</td>
                   <td>
                     {ok(x) ? (
-                      <><span className="tag-t tag-BELUM">dihapus · dikonfirmasi</span><div className="kecil">{x.jejak.alasan}</div></>
+                      <><TandaSelesai ok /> <span className="tag-t tag-BELUM">dihapus · dikonfirmasi</span><div className="kecil">{x.jejak.alasan}</div></>
                     ) : (
                       <div className="tl-putus">
+                        <TandaSelesai ok={false} />
                         <textarea className="inp" rows={2} placeholder="Alasan setuju dihapus (wajib)" value={(draf[x.id] && draf[x.id].alasan) || ''} onChange={(e) => set(x.id, { alasan: e.target.value })} />
                         <div className="tl-aksi">
                           <button type="button" className="tbl" onClick={() => setuju(x)}>{/^Gagal/.test(pesan[x.id] || '') ? 'Simpan ulang' : 'Setuju dihapus'}</button>
@@ -505,13 +496,8 @@ export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
   };
   return (
     <>
-      <div className="tl-kepala">
-        <div className="chip-baris">
-          <button type="button" className={'pil' + (belum ? ' aktif' : '')} onClick={() => setBelum(true)}>Belum diputus {L.rekap.pasalBelum} pasal</button>
-          <button type="button" className={'pil' + (!belum ? ' aktif' : '')} onClick={() => setBelum(false)}>Semua {L.rekap.pasal} pasal</button>
-          <span className="kecil">Pasal ketentuan umum dan penutup dikecualikan. Putusan tidak mengubah naskah.</span>
-        </div>
-      </div>
+      <Sakelar semua={!belum} onSemua={(v) => setBelum(!v)} nSemua={L.rekap.pasal + ' pasal'} nBelum={L.rekap.pasalBelum + ' pasal'} labelBelum="Belum diputus"
+               keterangan="Pasal ketentuan umum dan penutup dikecualikan. Putusan tidak mengubah naskah." />
       <div className="tl-gulir">
         <table className="tl-tabel tl-beku">
           <thead><tr><th style={{ width: 150 }}>Pasal</th><th>Ayat yang tidak dirujuk urusan</th><th style={{ width: 330 }}>Putusan untuk pasal ini</th></tr></thead>
@@ -520,7 +506,7 @@ export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
               const d = draf[g.pasal];
               return (
                 <tr key={g.pasal}>
-                  <td><button type="button" className="tautan" onClick={() => onBukaPasal(g.pasal)}>Pasal {g.pasal}</button>{g.judul ? <div className="kecil">{g.judul}</div> : null}</td>
+                  <td><button type="button" className="tautan" onClick={() => onBukaPasal(g.pasal)}>Pasal {g.pasal}</button>{g.judul ? <div className="kecil">{g.judul}</div> : null}<TandaSelesai ok={g.diputus} /></td>
                   <td className="tl-kutip">
                     {g.baris.map((x) => (
                       <div key={x.id} className="pk-ayat">

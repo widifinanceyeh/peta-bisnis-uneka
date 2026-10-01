@@ -303,6 +303,32 @@ export default function App() {
     dorong({ id: null, halaman: 'kerja', kerja: kode }, kode ? '#kerja-' + encodeURIComponent(kode) : '#kerja');
   }, [dorong]);
 
+  /** v5.9: dari Periksa (ayat delegasi, butir Monev) langsung ke satu dokumen turunan. */
+  const bukaTurunanId = useCallback((id) => {
+    sesudahSimpan(() => {
+      setIdTerpilih(null);
+      setHalaman('turunan');
+      setSelTurunan(id || '');
+      dorong({ id: null, halaman: 'turunan', turunan: id || '' }, id ? '#turunan-' + encodeURIComponent(id) : '#turunan');
+    });
+  }, [sesudahSimpan, dorong]);
+
+  /** v5.9: lencana Monev (Naskah, Dokumen Turunan) membuka Periksa › Butir Monev pada butirnya; ruang Rapat beralih ke Kerja. */
+  const bukaMonev = useCallback((butir) => {
+    sesudahSimpan(() => {
+      if (ruang !== 'kerja') {
+        setRuangState('kerja');
+        try { window.localStorage.setItem(STORAGE_KEY.RUANG, 'kerja'); } catch (e) { /* abaikan */ }
+      }
+      const kode = 'MONEV-' + butir;
+      setIdTerpilih(null);
+      setHalaman('kerja');
+      setSelKerja(kode);
+      dorong({ id: null, halaman: 'kerja', kerja: kode }, '#kerja-' + encodeURIComponent(kode));
+    });
+  }, [sesudahSimpan, dorong, ruang]);
+  useEffect(() => { navigasi.bukaMonev = bukaMonev; return () => { navigasi.bukaMonev = null; }; }, [bukaMonev]);
+
   // v5.8: posisi terakhir disimpan per perangkat; dipakai bila aplikasi dibuka tanpa alamat halaman.
   useEffect(() => {
     try { if (window.location.hash) window.localStorage.setItem(STORAGE_KEY.POSISI, window.location.hash); } catch (e) { /* abaikan */ }
@@ -457,7 +483,7 @@ export default function App() {
         </Suspense>
       ) : halaman === 'kerja' && ruang === 'kerja' ? (
         <Suspense fallback={muatModul}>
-          <DaftarKerjaPage onBukaTelaah={bukaTelaah} onBukaNaskah={bukaSaringNaskah} urusan={urusan} pilih={selKerja} onPilih={pilihKerja}
+          <DaftarKerjaPage onBukaTelaah={bukaTelaah} onBukaNaskah={bukaSaringNaskah} onBukaTurunan={bukaTurunanId} urusan={urusan} pilih={selKerja} onPilih={pilihKerja}
                            onGalat={(m) => setToast({ pesan: m, jenis: 'galat' })} />
         </Suspense>
       ) : halaman === 'turunan' ? (

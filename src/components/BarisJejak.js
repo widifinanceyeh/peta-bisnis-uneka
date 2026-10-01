@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import TeksBeda from './TeksBeda';
 import KotakRedaksi from './KotakRedaksi';
+import LencanaMonev from './LencanaMonev';
 import { simpanJejak } from '../naskah';
 import { labelAyatLama } from '../utils/rujukan';
 import { potongSorotan } from '../utils/telaah';
@@ -61,6 +62,7 @@ export default function BarisJejak({
               <button type="button" className="jj-asal" onClick={() => onPilihPasal(kanan.pasal)}>ke Pasal {kanan.pasal}</button>
             ) : null}
             <span className="jj-no">{kanan.nomor ? '(' + kanan.nomor + ')' : ''}</span>
+            {pn ? <LencanaMonev daftar={pn.monev.concat(pn.monevAda || []).sort((a, b) => Number(a.butir) - Number(b.butir))} /> : null}
             {bisaBeda ? <TeksBeda kiri={kiri.teks} kanan={kanan.teks} sisi="kanan" />
               : <TeksSorot teks={kanan.teks} sorot={kanan.sorot} warna={warna} />}
             {jejak ? <span className="st-kecil" style={{ background: warnaSt || undefined }}>{String(jejak.status || '').split(' ')[0]}</span> : null}

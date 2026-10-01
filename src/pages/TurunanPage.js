@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { langganNaskah, ambilNaskah, muatTurunan, muatTeks, muatInitNaskah, simpanTurunan } from '../naskah';
-import { labelAyat, petaAyatUrusan } from '../utils/telaah';
+import { langganNaskah, ambilNaskah, muatTurunan, muatTeks, muatInitNaskah, muatTelaah, simpanTurunan } from '../naskah';
+import { labelAyat, petaAyatUrusan, monevPerAyat } from '../utils/telaah';
+import LencanaMonev from '../components/LencanaMonev';
 import { RelAtas, TombolLaci } from '../components/TombolRel';
 import TombolTautan from '../components/TombolTautan';
 import PitaPeta from '../components/PitaPeta';
@@ -41,6 +42,7 @@ export default function TurunanPage({ ruang, onBukaPasal, onBukaTelaah, onBukaUr
     muatTurunan().catch((e) => onGalat && onGalat((e && e.message) || String(e)));
     muatTeks().catch(() => {});
     muatInitNaskah().catch(() => {});
+    muatTelaah().catch(() => {});   // v5.9: lencana Monev
   }, [onGalat]);
   const T = n.turunan;
 
@@ -60,6 +62,7 @@ export default function TurunanPage({ ruang, onBukaPasal, onBukaTelaah, onBukaUr
     ((T && T.dokumen) || []).forEach((d) => { o[d.id] = d.dokumen; });
     return o;
   }, [T]);
+  const monev = useMemo(() => monevPerAyat(n.telaah), [n.telaah]);
   const ayatUrusan = useMemo(() => petaAyatUrusan(urusan, n.init && n.init.indeks26), [urusan, n.init]);
   const indeksUrusan = useMemo(() => { const o = {}; (urusan || []).forEach((u) => { o[u.id] = u; }); return o; }, [urusan]);
 
@@ -73,7 +76,7 @@ export default function TurunanPage({ ruang, onBukaPasal, onBukaTelaah, onBukaUr
   const tersaring = T.dokumen.filter((d) => !q || (d.dokumen + ' ' + d.pokok + ' ' + d.dasar).toLowerCase().indexOf(q) !== -1);
   const mode = ['LEPAS', 'BARU', 'BENTROK'].indexOf(pilih) !== -1 ? pilih : 'DOK';
   const aktif = mode === 'DOK' ? (T.dokumen.find((d) => d.id === pilih) || T.dokumen[0] || null) : null;
-  const bersama = { T, teks, milik, namaDok, kerja, siap, onBukaPasal, onGalat };
+  const bersama = { T, teks, milik, namaDok, kerja, siap, onBukaPasal, onGalat, monev };
 
   const simpanDok = async (d, ayat) => simpanTurunan({
     id: d.id, dokumen: d.dokumen, penetap: d.penetap, status: d.status, catatan: d.catatan, ayat, oleh: oleh()
@@ -92,7 +95,7 @@ export default function TurunanPage({ ruang, onBukaPasal, onBukaTelaah, onBukaUr
                 <div className="nk-bab-judul">{p.toUpperCase()}</div>
                 {isi.map((d) => (
                   <button type="button" key={d.id} className={'nk-item pk-item' + (aktif && aktif.id === d.id ? ' aktif' : '')} onClick={() => setPilih(d.id)} title={d.dokumen}>
-                    <span className="nk-item-judul">{d.dokumen.replace(AWALAN, '')}</span>
+                    <span className="nk-item-judul">{d.dokumen.replace(AWALAN, '')}{(d.baris || []).some((b) => monev[b.id]) ? <span className="tanda-m" title="Memuat ayat yang ditagih Monev">M</span> : null}</span>
                     <span className={'td-st' + (/^ada/i.test(d.status) ? ' td-ada' : '')}>{d.status || '—'}</span>
                   </button>
                 ))}
@@ -160,7 +163,7 @@ function sidik(d) {
 }
 
 /** Label dan bunyi satu ayat; ayat yang tidak ada lagi di naskah 2026 ditandai. */
-function Ayat({ id, rujukan, teks, T, milik, namaDok, dokId, onBukaPasal }) {
+function Ayat({ id, rujukan, teks, T, milik, namaDok, dokId, onBukaPasal, monev }) {
   const a = teks[id];
   const lain = (milik[id] || []).filter((k) => k !== dokId);
   if (!a) {
@@ -177,6 +180,7 @@ function Ayat({ id, rujukan, teks, T, milik, namaDok, dokId, onBukaPasal }) {
       <button type="button" className="tautan" onClick={() => onBukaPasal(a.pasal)}>{labelAyat(a.pasal, a.nomor)}</button>
       <span className={'td-tag' + (deleg ? ' td-tag-deleg' : '')}>{deleg ? 'mendelegasikan' : 'rujukan'}</span>
       {lain.length ? <span className="td-tag td-tag-lain" title={lain.map((k) => k + ' ' + (namaDok[k] || '')).join('; ')}>juga di {lain.join(', ')}</span> : null}
+      <LencanaMonev daftar={monev && monev[id]} />
       <div className="td-bunyi">{a.teks}</div>
     </div>
   );
@@ -203,7 +207,7 @@ function Ringkasan({ baris, teks, d }) {
   );
 }
 
-function BacaDok({ d, T, teks, milik, namaDok, onBukaPasal }) {
+function BacaDok({ d, T, teks, milik, namaDok, onBukaPasal, monev }) {
   const baris = urutkan(barisAwal(d), teks);
   return (
     <>
@@ -216,7 +220,7 @@ function BacaDok({ d, T, teks, milik, namaDok, onBukaPasal }) {
         <div className="td-kepala"><span>Ayat rujukan (bunyi naskah 2026)</span><span>Pokok urusan yang diatur dokumen ini</span></div>
         {baris.map((x) => (
           <div key={x.id} className="td-baris">
-            <Ayat id={x.id} rujukan={x.rujukan} teks={teks} T={T} milik={milik} namaDok={namaDok} dokId={d.id} onBukaPasal={onBukaPasal} />
+            <Ayat id={x.id} rujukan={x.rujukan} teks={teks} T={T} milik={milik} namaDok={namaDok} dokId={d.id} onBukaPasal={onBukaPasal} monev={monev} />
             <div className="td-pokok">{x.pokok || <span className="redup">—</span>}</div>
           </div>
         ))}
@@ -227,7 +231,7 @@ function BacaDok({ d, T, teks, milik, namaDok, onBukaPasal }) {
   );
 }
 
-function FormDok({ d, T, teks, milik, namaDok, siap, onBukaPasal, onGalat, onTersimpan, pesanAwal }) {
+function FormDok({ d, T, teks, milik, namaDok, siap, onBukaPasal, onGalat, onTersimpan, pesanAwal, monev }) {
   // Isian (termasuk daftar ayat dan pokok urusan) disimpan sebagai draf di peramban sampai simpan berhasil.
   const [f, setF, lepas, adaDraf] = useDraf('turunan57:' + (d ? d.id : 'baru'), {
     dokumen: d ? d.dokumen : '', penetap: d ? d.penetap : T.penetap[0], status: d ? d.status : (T.pilihanStatus[0] || ''),
@@ -270,7 +274,7 @@ function FormDok({ d, T, teks, milik, namaDok, siap, onBukaPasal, onGalat, onTer
         <div className="td-kepala"><span>Ayat rujukan (bunyi naskah 2026)</span><span>Pokok urusan yang diatur dokumen ini</span><span /></div>
         {baris.map((x) => (
           <div key={x.id} className="td-baris">
-            <Ayat id={x.id} rujukan={x.rujukan} teks={teks} T={T} milik={milik} namaDok={namaDok} dokId={d ? d.id : ''} onBukaPasal={onBukaPasal} />
+            <Ayat id={x.id} rujukan={x.rujukan} teks={teks} T={T} milik={milik} namaDok={namaDok} dokId={d ? d.id : ''} onBukaPasal={onBukaPasal} monev={monev} />
             <textarea className="inp td-pokok" rows={2} value={x.pokok} placeholder="Pokok urusan yang diatur dari ayat ini"
                       onChange={(e) => ubahPokok(x.id, e.target.value)} />
             <button type="button" className="td-buang" title="Lepas dari dokumen ini" aria-label="Lepas dari dokumen ini" onClick={() => buang(x.id)}>×</button>
@@ -282,7 +286,7 @@ function FormDok({ d, T, teks, milik, namaDok, siap, onBukaPasal, onGalat, onTer
         <button type="button" className="tbl tbl-ringan" onClick={() => setBuka(!buka)} aria-expanded={buka}>{buka ? 'Tutup pilihan ayat' : '+ Tambah ayat'}</button>
         <span className="kecil">Ayat yang sudah menjadi dasar dokumen lain tidak dapat dipilih.</span>
       </div>
-      {buka ? <PilihAyat T={T} teks={teks} milik={milik} namaDok={namaDok} dokId={d ? d.id : ''} ada={f.baris} onPilih={tambah} /> : null}
+      {buka ? <PilihAyat T={T} teks={teks} milik={milik} namaDok={namaDok} dokId={d ? d.id : ''} ada={f.baris} onPilih={tambah} monev={monev} /> : null}
 
       <Ringkasan baris={f.baris} teks={teks} d={d} />
       <label>Catatan<textarea className="inp" rows={2} value={f.catatan} onChange={ubah('catatan')} /></label>
@@ -295,7 +299,7 @@ function FormDok({ d, T, teks, milik, namaDok, siap, onBukaPasal, onGalat, onTer
 }
 
 /** Pilihan ayat: tanpa kata cari = ayat mendelegasikan yang belum masuk dokumen dan ayat lain pada pasal yang sama. */
-function PilihAyat({ T, teks, milik, namaDok, dokId, ada, onPilih }) {
+function PilihAyat({ T, teks, milik, namaDok, dokId, ada, onPilih, monev }) {
   const [q, setQ] = useState('');
   const sudah = new Set(ada.map((b) => b.id));
   const semua = Object.keys(teks).map((k) => teks[k]).sort((a, b) => a.urut - b.urut);
@@ -325,6 +329,7 @@ function PilihAyat({ T, teks, milik, namaDok, dokId, ada, onPilih }) {
                       onClick={() => onPilih(a.id)}>
                 <span className="td-pilih-lbl"><b>{labelAyat(a.pasal, a.nomor)}</b>
                   <span className={'td-tag' + (deleg ? ' td-tag-deleg' : '')}>{deleg ? 'mendelegasikan' : 'rujukan'}</span>
+                  <LencanaMonev daftar={monev && monev[a.id]} klik={false} />
                   {lain.length ? <span className="td-milik">sudah dasar {lain.map((k) => k + ' ' + (namaDok[k] || '').replace(AWALAN, '')).join('; ')}</span> : null}
                 </span>
                 <span className="kecil td-pilih-bunyi">{a.teks}</span>

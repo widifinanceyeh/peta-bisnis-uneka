@@ -342,11 +342,20 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
                 <div className="blok-label">DASAR HUKUM</div>
                 {hukum.length ? (
                   <div className="chip-baris">
-                    {hukum.map((h, i) => (
-                      <button type="button" key={i} className="chip-hukum" onClick={() => setDh(h)} title={h.t}>
-                        {h.t.length > 95 ? h.t.slice(0, 93) + '…' : h.t}
-                      </button>
-                    ))}
+                    {hukum.map((h, i) => {
+                      // v5.9: baris judul ("Permendiktisaintek 39/2025:") hanya keterangan; kutipan yang alamatnya
+                      // tidak (seluruhnya) ditemukan diberi tanda supaya terlihat tanpa harus dibuka.
+                      if (h.judul) return <span key={i} className="chip-hukum-judul">{h.t}</span>;
+                      const d = h.q ? n.hukum[h.q] : null;
+                      const kurang = d ? (!d.ada ? 'gagal' : (d.alamat || []).some((a) => !a.ada) ? 'sebagian' : '') : '';
+                      return (
+                        <button type="button" key={i} className={'chip-hukum' + (kurang ? ' chip-hukum-' + kurang : '')} onClick={() => setDh(h)}
+                                title={h.t + (kurang ? '\n' + (d.alasan || '') : '')}>
+                          {kurang ? <span className="chip-hukum-tanda" aria-hidden="true">!</span> : null}
+                          {h.t.length > 95 ? h.t.slice(0, 93) + '…' : h.t}
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : <div className="tanda-awas-teks">Belum ada blok Dasar hukum pada naskah.</div>}
               </div>

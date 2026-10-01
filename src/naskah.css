@@ -693,3 +693,33 @@ mark.tl-organ { background: var(--kuning); color: inherit; padding: 0 1px; }
 .tombol-tautan.ok { color: #1d7359; border-color: #9fd3bd; background: #e3f4ec; }
 @media (max-width: 760px) { .tombol-tautan span { display: none; } .tombol-tautan.ok span { display: inline; } }
 .nk-berubah { color: #2b6fd8; font-style: normal; font-size: 9px; margin-left: 5px; vertical-align: 2px; }
+
+/* ---------------------------------------------------------------- v5.9 */
+/* Periksa: sakelar Semua/Belum dan tanda status seragam */
+.pk-sakelar { padding-top: 0; }
+.pk-st { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 100px; white-space: nowrap; vertical-align: 1px; }
+.pk-st-ok { background: var(--hijau); color: var(--hijau-teks); }
+.pk-st-belum { background: #fde7d3; color: #9a4a0b; }
+.pk-sorot > td { background: #fff4e6 !important; box-shadow: inset 0 0 0 1px #f0b27a; }
+.pk-kosong { padding: 12px 4px; }
+/* Lencana Monev: oranye = ditagih, abu-abu = sudah ada menurut BA */
+.lencana-m-baris { display: inline-flex; flex-wrap: wrap; gap: 3px; margin: 0 4px; vertical-align: 1px; }
+.lencana-m { font-family: var(--font); font-size: 10px; font-weight: 700; line-height: 1.5; padding: 0 5px; border-radius: 4px;
+  background: #fde7d3; color: #9a4a0b; border: 1px solid #f3c49a; white-space: nowrap; }
+button.lencana-m { cursor: pointer; }
+button.lencana-m:hover { background: #f9d2ad; border-color: #d9813a; }
+button.lencana-m:focus-visible { outline: 2px solid var(--navy); outline-offset: 1px; }
+.lencana-m-ada { background: var(--abu); color: #4a4f5c; border-color: #d4d7de; }
+button.lencana-m-ada:hover { background: #e3e5ea; border-color: #9aa0ad; }
+.nk-item-judul .tanda-m { margin-left: 5px; vertical-align: 1px; }
+/* Dasar hukum: baris judul, kutipan yang alamatnya (sebagian) tidak ditemukan */
+.chip-hukum-judul { font-size: 11.5px; font-weight: 700; color: var(--teks-redup); align-self: center; }
+.chip-hukum-sebagian { border-color: #f0c98a; }
+.chip-hukum-gagal { border-color: #eab0b8; }
+.chip-hukum-tanda { display: inline-block; width: 14px; height: 14px; line-height: 14px; text-align: center; border-radius: 50%;
+  font-size: 10px; font-weight: 700; margin-right: 5px; background: #fde7d3; color: #9a4a0b; }
+.chip-hukum-gagal .chip-hukum-tanda { background: var(--merah); color: var(--merah-teks); }
+.dh-alamat { font-size: 11.5px; padding: 2px 8px; border-radius: 100px; }
+.dh-alamat-ok { background: var(--hijau); color: var(--hijau-teks); }
+.dh-alamat-hilang { background: var(--merah); color: var(--merah-teks); }
+.tl-gulir.pk-isi .tl-beku thead th { top: -6px; }   /* v5.9: isi tabel tidak mengintip di atas kepala tabel */

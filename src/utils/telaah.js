@@ -220,15 +220,94 @@ export function monevBelum(m) {
   return !st || /^belum/i.test(st);
 }
 
+/** v5.9: seluruh butir Monev (termasuk yang sudah ada menurut BA) per ID ayat 2026. */
+export function monevPerAyat(telaah) {
+  const out = {};
+  ((telaah && telaah.monev) || []).forEach((m) => (m.ids || []).forEach((id) => { (out[id] = out[id] || []).push(m); }));
+  return out;
+}
+
+/** v5.9: pemilik setiap ayat pada dokumen turunan: {idAyat: {id, dokumen, status}}. */
+export function pemilikTurunan(turunan) {
+  const out = {};
+  ((turunan && turunan.dokumen) || []).forEach((d) => (d.baris || []).forEach((b) => {
+    if (!out[b.id]) out[b.id] = { id: d.id, dokumen: d.dokumen, status: d.status || '' };
+  }));
+  return out;
+}
+
+/** v5.9: nomor ayat 2026 dari bunyi seluruh naskah: {idAyat: {pasal, nomor, teks}}. */
+export function indeksTeks(teks) {
+  const out = {};
+  ((teks && teks.ayat) || []).forEach(([id, pasal, nomor, t]) => { out[id] = { pasal, nomor, teks: t }; });
+  return out;
+}
+
+/**
+ * v5.9: seluruh butir Berita Acara Monev beserta keadaannya.
+ * Selesai (patokan naskah) = alamatnya ditemukan di naskah 2026 dan
+ *   (status BA "Ada", atau semua ayatnya sudah menjadi dasar dokumen turunan).
+ */
+export function daftarMonev(n) {
+  const t = n && n.telaah;
+  if (!t || !n.turunan) return null;
+  const milik = pemilikTurunan(n.turunan);
+  return (t.monev || []).map((m) => {
+    const ids = m.ids || [];
+    const dok = ids.map((id) => milik[id]).filter(Boolean);
+    const adaBA = !monevBelum(m);
+    const hilang = (m.hilang || []).length > 0;
+    const tanpaAyat = !ids.length;
+    const selesai = !hilang && !tanpaAyat && (adaBA || dok.length === ids.length);
+    let sebab = '';
+    if (hilang) sebab = 'Alamat tidak ada di naskah 2026: ' + m.hilang.join(', ') + '.';
+    else if (tanpaAyat) sebab = 'Berita Acara hanya menyebut pasal; isi kolom "Ayat tertuju" pada tab 08-MONEV.';
+    else if (!selesai) sebab = 'Ayat belum menjadi dasar dokumen turunan mana pun.';
+    return Object.assign({}, m, { dok, milik: ids.map((id) => milik[id] || null), selesai, sebab, adaBA });
+  });
+}
+
+// v5.9: ayat yang memerintahkan pengaturan lebih lanjut dengan peraturan (bukan keputusan perorangan).
+const RX_DELEGASI = /((ditetapkan|diatur)\s+(lebih lanjut\s+)?(dengan|dalam)\s+(Peraturan (Yayasan|Rektor)|Ketetapan Senat))|(sesuai dengan Peraturan (Rektor|Yayasan)\b)|(bagian dari Peraturan Rektor)/i;
+const RX_BUKAN_DELEGASI = /perubahan Statuta|belum diatur dalam Statuta/i;
+
+/** v5.9: ayat delegasi beserta dokumen turunannya (kosong = belum punya dokumen). */
+export function daftarDelegasi(n) {
+  if (!n || !n.teks || !n.turunan) return null;
+  const milik = pemilikTurunan(n.turunan);
+  return ((n.teks && n.teks.ayat) || [])
+    .filter(([, , , t]) => RX_DELEGASI.test(t) && !RX_BUKAN_DELEGASI.test(t))
+    .map(([id, pasal, nomor, t]) => ({ id, pasal, nomor, teks: t, dok: milik[id] || null }));
+}
+
+/** v5.9: pasangan kembar yang sudah diputus "Bukan kembar" (dari tab 09), lengkap dengan bunyi kedua ayat. */
+export function kembarDiputus(n) {
+  const t = n && n.telaah;
+  if (!t) return [];
+  const ix = indeksTeks(n.teks);
+  return Object.keys(t.putusan || {}).filter((k) => /^KEMBAR /.test(k)).map((k) => {
+    const [a, b] = k.slice(7).split('|');
+    const A = ix[a] || {}, B = ix[b] || {};
+    return { a, b, pa: A.pasal || pasalId(a), na: A.nomor || '', ta: A.teks || '', pb: B.pasal || pasalId(b), nb: B.nomor || '', tb: B.teks || '', putusan: t.putusan[k] };
+  });
+}
+
+/** v5.9: seluruh usulan redaksi dari pasal yang sudah dimuat: [{pasal, id26, status, …}]. */
+export function daftarRedaksi(n) {
+  const out = [];
+  Object.keys((n && n.pasal) || {}).forEach((p) => ((n.pasal[p] && n.pasal[p].redaksi) || []).forEach((r) => out.push(Object.assign({ pasal: Number(p) }, r))));
+  return out.sort((x, y) => x.pasal - y.pasal || String(x.id26).localeCompare(String(y.id26)));
+}
+
 export function susunKerja(n) {
   const t = (n && n.telaah) || null;
   const init = (n && n.init) || null;
-  const bilah = (k) => { const b = t && (t.bilah || []).find((x) => x.kode === k); return b ? b.jumlah : null; };
   const permen = t && t.kerja ? (t.kerja.permen || {}) : null;
   const luar = n && n.luar ? n.luar.rekap : null;
   const pasalBila = (f) => (init ? init.daftar.filter(f).map((d) => d.pasal) : null);
   const redaksi = pasalBila((d) => d.redaksi > 0);
-  const monev = t ? (t.monev || []).filter((m) => m.hilang && m.hilang.length) : null;
+  const monev = daftarMonev(n);
+  const delegasi = daftarDelegasi(n);
   return [
     { kode: 'PERMEN', label: 'Butir Permen 16/2018 belum terpenuhi',
       jumlah: permen ? (permen.SEBAGIAN || 0) + (permen['BELUM ADA'] || 0) : null,
@@ -252,9 +331,13 @@ export function susunKerja(n) {
       tujuan: 'Tidak ada usulan perubahan kata yang menggantung.',
       selesai: 'Semua usulan sudah diterapkan ke Doc atau ditolak.',
       cara: 'Buka pasal, tinjau usulan pada ayatnya, lalu Terapkan ke Doc atau tolak.' },
-    { kode: 'MONEV', label: 'Alamat Monev tidak ditemukan', jumlah: monev ? monev.length : bilah('MONEV'), monev: monev || [],
-      tujuan: 'Setiap temuan BA Monev menunjuk ayat yang ada di naskah 2026, supaya pemenuhannya bisa ditelusuri.',
-      selesai: 'Semua butir Monev menunjuk ayat yang ada.',
-      cara: 'Perbaiki kolom "Ayat tertuju" pada tab 08-MONEV mengikuti penomoran naskah 2026.' }
+    { kode: 'MONEV', label: 'Butir Monev Berita Acara', jumlah: monev ? monev.filter((m) => !m.selesai).length : null, total: monev ? monev.length : null, monev: monev || [],
+      tujuan: 'Setiap butir yang ditagih Berita Acara Monev tertuang di naskah 2026 dan sudah punya dokumen turunan yang akan mengaturnya.',
+      selesai: 'Alamatnya ada di naskah 2026, dan status BA "Ada" atau ayatnya sudah menjadi dasar dokumen turunan. Status dokumen turunan (belum ada / ditetapkan) tampil terpisah.',
+      cara: 'Butir tanpa dokumen: tambahkan ayatnya pada dokumen yang sesuai di menu Dokumen Turunan. Alamat yang tidak ditemukan: perbaiki kolom "Ayat tertuju" pada tab 08-MONEV.' },
+    { kode: 'DELEGASI', label: 'Ayat delegasi belum punya dokumen turunan', jumlah: delegasi ? delegasi.filter((d) => !d.dok).length : null, total: delegasi ? delegasi.length : null, delegasi: delegasi || [],
+      tujuan: 'Setiap ayat yang memerintahkan pengaturan lebih lanjut dengan Peraturan Yayasan, Peraturan Rektor, atau Ketetapan Senat sudah dipetakan ke satu dokumen turunan.',
+      selesai: 'Semua ayat delegasi menjadi dasar satu dokumen turunan.',
+      cara: 'Buka menu Dokumen Turunan, pilih dokumen yang sesuai (atau buat baru), lalu tambahkan ayatnya beserta pokok urusan.' }
   ];
 }
