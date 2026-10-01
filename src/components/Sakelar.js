@@ -16,7 +16,9 @@ export function Sakelar({ semua, onSemua, nSemua, nBelum, labelBelum, keterangan
   );
 }
 
-/** v5.9: tanda status seragam: hijau "Selesai", oranye "Belum". */
-export function TandaSelesai({ ok, teks }) {
-  return <span className={'pk-st ' + (ok ? 'pk-st-ok' : 'pk-st-belum')}>{teks || (ok ? 'Selesai' : 'Belum')}</span>;
+/** v5.9: tanda status seragam: hijau "Selesai", oranye "Belum". v5.10: biru "Proses" (tahap = 'PROSES'). */
+export function TandaSelesai({ ok, tahap, teks }) {
+  if (tahap === 'PROSES') return <span className="pk-st pk-st-proses">{teks || 'Proses'}</span>;
+  const selesai = tahap ? tahap === 'ADA' : ok;
+  return <span className={'pk-st ' + (selesai ? 'pk-st-ok' : 'pk-st-belum')}>{teks || (selesai ? 'Selesai' : 'Belum')}</span>;
 }

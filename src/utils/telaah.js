@@ -227,11 +227,35 @@ export function monevPerAyat(telaah) {
   return out;
 }
 
+/**
+ * v5.10: tahap dokumen turunan: ADA (status "Ada"), PROSES (status penyusunan atau sudah ada tautan draf), BELUM.
+ */
+export function tahapTurunan(d) {
+  const st = String((d && d.status) || '').trim();
+  if (/^ada\b/i.test(st)) return 'ADA';
+  if (/penyusunan|proses|draf/i.test(st) || String((d && d.drafTautan) || '').trim()) return 'PROSES';
+  return 'BELUM';
+}
+
+/** v5.10: jenis berkas dari tautan, untuk label kecil di samping judul draf. */
+export function jenisTautan(url) {
+  const u = String(url || '').toLowerCase();
+  if (!u) return '';
+  if (u.indexOf('docs.google.com/document') !== -1) return 'Google Doc';
+  if (u.indexOf('docs.google.com/spreadsheets') !== -1) return 'Google Sheet';
+  if (u.indexOf('docs.google.com/presentation') !== -1) return 'Google Slides';
+  if (/\.pdf(\?|#|$)/.test(u)) return 'PDF';
+  if (/\.docx?(\?|#|$)/.test(u)) return 'Word';
+  if (/\.xlsx?(\?|#|$)/.test(u)) return 'Excel';
+  if (u.indexOf('drive.google.com') !== -1) return 'Google Drive';
+  return 'Tautan';
+}
+
 /** v5.9: pemilik setiap ayat pada dokumen turunan: {idAyat: {id, dokumen, status}}. */
 export function pemilikTurunan(turunan) {
   const out = {};
   ((turunan && turunan.dokumen) || []).forEach((d) => (d.baris || []).forEach((b) => {
-    if (!out[b.id]) out[b.id] = { id: d.id, dokumen: d.dokumen, status: d.status || '' };
+    if (!out[b.id]) out[b.id] = { id: d.id, dokumen: d.dokumen, status: d.status || '', drafJudul: d.drafJudul || '', drafTautan: d.drafTautan || '', tahap: tahapTurunan(d) };
   }));
   return out;
 }
@@ -244,26 +268,33 @@ export function indeksTeks(teks) {
 }
 
 /**
- * v5.9: seluruh butir Berita Acara Monev beserta keadaannya.
- * Selesai (patokan naskah) = alamatnya ditemukan di naskah 2026 dan
- *   (status BA "Ada", atau semua ayatnya sudah menjadi dasar dokumen turunan).
+ * Seluruh butir Berita Acara Monev beserta keadaannya (v5.9; patokan diubah v5.10).
+ * Tahap mengikuti kenyataan dokumennya:
+ *   - butir yang ayatnya menjadi dasar dokumen turunan: tahap dokumen itu (ADA / PROSES / BELUM; bila lebih dari
+ *     satu dokumen, yang paling belum);
+ *   - butir tanpa dokumen turunan (mis. keputusan pengangkatan): status BA "Ada" = ADA, selain itu BELUM.
+ * Alamat yang tidak ditemukan di naskah 2026 selalu BELUM.
  */
 export function daftarMonev(n) {
   const t = n && n.telaah;
   if (!t || !n.turunan) return null;
   const milik = pemilikTurunan(n.turunan);
+  const urut = { BELUM: 0, PROSES: 1, ADA: 2 };
   return (t.monev || []).map((m) => {
     const ids = m.ids || [];
     const dok = ids.map((id) => milik[id]).filter(Boolean);
     const adaBA = !monevBelum(m);
     const hilang = (m.hilang || []).length > 0;
-    const tanpaAyat = !ids.length;
-    const selesai = !hilang && !tanpaAyat && (adaBA || dok.length === ids.length);
+    let tahap;
     let sebab = '';
-    if (hilang) sebab = 'Alamat tidak ada di naskah 2026: ' + m.hilang.join(', ') + '.';
-    else if (tanpaAyat) sebab = 'Berita Acara hanya menyebut pasal; isi kolom "Ayat tertuju" pada tab 08-MONEV.';
-    else if (!selesai) sebab = 'Ayat belum menjadi dasar dokumen turunan mana pun.';
-    return Object.assign({}, m, { dok, milik: ids.map((id) => milik[id] || null), selesai, sebab, adaBA });
+    if (hilang) { tahap = 'BELUM'; sebab = 'Alamat tidak ada di naskah 2026: ' + m.hilang.join(', ') + '.'; }
+    else if (!ids.length) { tahap = adaBA ? 'ADA' : 'BELUM'; sebab = 'Berita Acara hanya menyebut pasal; isi kolom "Ayat tertuju" pada tab 08-MONEV.'; }
+    else if (dok.length) {
+      tahap = dok.map((d) => d.tahap).sort((x, y) => urut[x] - urut[y])[0];
+      if (dok.length < ids.length) { tahap = 'BELUM'; sebab = 'Sebagian ayat belum menjadi dasar dokumen turunan.'; }
+    } else tahap = adaBA ? 'ADA' : 'BELUM';
+    if (!sebab && tahap === 'BELUM' && !dok.length && !adaBA) sebab = 'Ayat belum menjadi dasar dokumen turunan mana pun.';
+    return Object.assign({}, m, { dok, milik: ids.map((id) => milik[id] || null), tahap, selesai: tahap === 'ADA', sebab, adaBA });
   });
 }
 
@@ -332,9 +363,9 @@ export function susunKerja(n) {
       selesai: 'Semua usulan sudah diterapkan ke Doc atau ditolak.',
       cara: 'Buka pasal, tinjau usulan pada ayatnya, lalu Terapkan ke Doc atau tolak.' },
     { kode: 'MONEV', label: 'Butir Monev Berita Acara', jumlah: monev ? monev.filter((m) => !m.selesai).length : null, total: monev ? monev.length : null, monev: monev || [],
-      tujuan: 'Setiap butir yang ditagih Berita Acara Monev tertuang di naskah 2026 dan sudah punya dokumen turunan yang akan mengaturnya.',
-      selesai: 'Alamatnya ada di naskah 2026, dan status BA "Ada" atau ayatnya sudah menjadi dasar dokumen turunan. Status dokumen turunan (belum ada / ditetapkan) tampil terpisah.',
-      cara: 'Butir tanpa dokumen: tambahkan ayatnya pada dokumen yang sesuai di menu Dokumen Turunan. Alamat yang tidak ditemukan: perbaiki kolom "Ayat tertuju" pada tab 08-MONEV.' },
+      tujuan: 'Setiap butir yang ditagih Berita Acara Monev benar-benar terpenuhi: dokumen yang diminta asesor ada.',
+      selesai: 'Dokumen turunannya berstatus "Ada"; untuk butir tanpa dokumen turunan, status Berita Acara "Ada". Proses = dokumen sedang disusun atau sudah ada tautan draf.',
+      cara: 'Isi tautan draf di menu Dokumen Turunan (status otomatis menjadi penyusunan); ubah status menjadi "Ada" sesudah dokumen ditetapkan. Alamat yang tidak ditemukan: perbaiki kolom "Ayat tertuju" pada tab 08-MONEV.' },
     { kode: 'DELEGASI', label: 'Ayat delegasi belum punya dokumen turunan', jumlah: delegasi ? delegasi.filter((d) => !d.dok).length : null, total: delegasi ? delegasi.length : null, delegasi: delegasi || [],
       tujuan: 'Setiap ayat yang memerintahkan pengaturan lebih lanjut dengan Peraturan Yayasan, Peraturan Rektor, atau Ketetapan Senat sudah dipetakan ke satu dokumen turunan.',
       selesai: 'Semua ayat delegasi menjadi dasar satu dokumen turunan.',

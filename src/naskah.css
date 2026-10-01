@@ -723,3 +723,17 @@ button.lencana-m-ada:hover { background: #e3e5ea; border-color: #9aa0ad; }
 .dh-alamat-ok { background: var(--hijau); color: var(--hijau-teks); }
 .dh-alamat-hilang { background: var(--merah); color: var(--merah-teks); }
 .tl-gulir.pk-isi .tl-beku thead th { top: -6px; }   /* v5.9: isi tabel tidak mengintip di atas kepala tabel */
+
+/* ---------------------------------------------------------------- v5.10 */
+.pk-st-proses { background: #e2ecfb; color: #234d8f; }
+.td-st.td-st-ada { background: #e3f4ec; color: #1d7359; }
+.td-st.td-st-proses { background: #e2ecfb; color: #234d8f; }
+.td-draf { display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.td-draf a { color: var(--navy); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.td-draf a:hover { color: #2b6fd8; }
+.td-draf-kecil a { font-weight: 500; font-size: 12px; }
+.td-draf-jenis { font-size: 10px; font-weight: 700; color: var(--teks-redup); background: var(--garis-2); border-radius: 4px; padding: 0 5px; }
+.td-draf-isi { margin-top: 2px; }
+.pk-peta-tbl { margin-top: 4px; font-size: 11px; padding: 1px 8px; }
+.pk-peta-baris > td { background: #fafbfe; padding-top: 2px; }
+.pk-dok + .pk-dok { margin-top: 4px; }

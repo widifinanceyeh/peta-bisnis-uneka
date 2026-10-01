@@ -483,7 +483,7 @@ export default function App() {
         </Suspense>
       ) : halaman === 'kerja' && ruang === 'kerja' ? (
         <Suspense fallback={muatModul}>
-          <DaftarKerjaPage onBukaTelaah={bukaTelaah} onBukaNaskah={bukaSaringNaskah} onBukaTurunan={bukaTurunanId} urusan={urusan} pilih={selKerja} onPilih={pilihKerja}
+          <DaftarKerjaPage onBukaTelaah={bukaTelaah} onBukaNaskah={bukaSaringNaskah} onBukaTurunan={bukaTurunanId} onBukaUrusan={bukaUrusanId} urusan={urusan} ctx={ctx} pilih={selKerja} onPilih={pilihKerja}
                            onGalat={(m) => setToast({ pesan: m, jenis: 'galat' })} />
         </Suspense>
       ) : halaman === 'turunan' ? (

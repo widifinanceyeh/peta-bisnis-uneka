@@ -5,6 +5,7 @@ import { ButirPermen, MuatanLuar } from './TelaahPage';
 import { STORAGE_KEY } from '../config';
 import { RelAtas, TombolLaci } from '../components/TombolRel';
 import { Sakelar, TandaSelesai } from '../components/Sakelar';
+import TautanDraf from '../components/TautanDraf';
 import useDraf from '../hooks/useDraf';
 
 /**
@@ -17,7 +18,7 @@ import useDraf from '../hooks/useDraf';
  * Angka di daftar kiri tetap menghitung yang belum. Butir Monev memuat 42 butir Berita Acara; alamat
  * #kerja-MONEV-n membuka butir n dan menyorotnya. Butir baru: ayat delegasi tanpa dokumen turunan.
  */
-export default function DaftarKerjaPage({ onBukaTelaah, onBukaNaskah, onBukaTurunan, urusan, onGalat, pilih: pilihProp, onPilih }) {
+export default function DaftarKerjaPage({ onBukaTelaah, onBukaNaskah, onBukaTurunan, onBukaUrusan, urusan, ctx, onGalat, pilih: pilihProp, onPilih }) {
   const [n, setN] = useState(ambilNaskah);
   // v5.8: butir terpilih dipegang App (riwayat, tombol Kembali, posisi terakhir).
   const [pilihLokal, setPilihLokal] = useState('');
@@ -44,7 +45,7 @@ export default function DaftarKerjaPage({ onBukaTelaah, onBukaNaskah, onBukaTuru
   const label = (id) => (ix[id] ? labelAyat(ix[id].pasal, ix[id].nomor) : id);
 
   let isi = null;
-  if (aktif.kode === 'PERMEN') isi = <ButirPermen n={n} onBukaPasal={bukaPasal('semua')} onPilih={onBukaTelaah} onGalat={onGalat} />;
+  if (aktif.kode === 'PERMEN') isi = <ButirPermen n={n} onBukaPasal={bukaPasal('semua')} onPilih={onBukaTelaah} onGalat={onGalat} urusan={urusan} ctx={ctx} onBukaUrusan={onBukaUrusan} />;
   else if (aktif.kode === 'LUAR') isi = <MuatanLuar jenis="luar" n={n} urusan={urusan} onBukaPasal={bukaPasal('semua')} onGalat={onGalat} />;
   else if (aktif.kode === 'JEJAK') isi = <MuatanLuar jenis="hapus" n={n} urusan={urusan} onBukaPasal={bukaPasal('usulan')} onGalat={onGalat} />;
   else if (aktif.kode === 'KEMBAR') {
@@ -144,7 +145,8 @@ function Monev({ daftar, belum, setBelum, sorot, label, onBukaPasal, onBukaTurun
   }, [adaSorot, sorot]);
   return (
     <>
-      <Sakelar semua={!belum} onSemua={(v) => setBelum(!v)} nSemua={daftar.length} nBelum={daftar.filter((m) => !m.selesai).length} />
+      <Sakelar semua={!belum} onSemua={(v) => setBelum(!v)} nSemua={daftar.length} nBelum={daftar.filter((m) => !m.selesai).length} labelBelum="Belum selesai"
+               keterangan={'Belum ' + daftar.filter((m) => m.tahap === 'BELUM').length + ' · Proses ' + daftar.filter((m) => m.tahap === 'PROSES').length + ' · Selesai ' + daftar.filter((m) => m.tahap === 'ADA').length} />
       <div className="tl-gulir pk-isi">
         <table className="tl-tabel tl-beku">
           <thead><tr><th style={{ width: 64 }}>Butir</th><th>Ditagih Berita Acara</th><th style={{ width: 150 }}>Ayat 2026</th>
@@ -161,10 +163,14 @@ function Monev({ daftar, belum, setBelum, sorot, label, onBukaPasal, onBukaTurun
                   ))}{!(m.ids || []).length ? <span className="redup">—</span> : null}</td>
                   <td>{(m.ids || []).map((id, i) => {
                     const d = m.milik[i];
-                    return <div key={id}>{d ? <button type="button" className="tautan" onClick={() => onBukaTurunan && onBukaTurunan(d.id)}>{d.id} · {d.dokumen}</button>
-                      : <span className="redup">belum ada dokumen</span>}{d && d.status ? <span className="kecil"> ({d.status.toLowerCase()})</span> : null}</div>;
+                    if (i > 0 && d && m.milik[i - 1] && m.milik[i - 1].id === d.id) return null;   // ayat berikutnya di dokumen yang sama
+                    return <div key={id} className="pk-dok">{d ? <button type="button" className="tautan" onClick={() => onBukaTurunan && onBukaTurunan(d.id)}>{d.id} · {d.dokumen}</button>
+                      : <span className="redup">belum ada dokumen turunan</span>}{d && d.status ? <span className="kecil"> ({d.status.toLowerCase()})</span> : null}
+                      {d && d.drafTautan ? <div><TautanDraf judul={d.drafJudul} tautan={d.drafTautan} cadangan={'Draf ' + d.id} kecil /></div> : null}</div>;
                   })}</td>
-                  <td><TandaSelesai ok={m.selesai} />{m.adaBA ? <span className="kecil"> sudah ada menurut BA</span> : null}{m.sebab ? <div className="jj-pesan">{m.sebab}</div> : null}</td>
+                  <td><TandaSelesai tahap={m.tahap} />{m.adaBA && !m.dok.length ? <span className="kecil"> sudah ada menurut BA</span> : null}
+                    {m.adaBA && m.dok.length && m.tahap !== 'ADA' ? <div className="kecil">BA mencatat "Ada", tetapi dokumen yang diminta belum ditetapkan.</div> : null}
+                    {m.sebab ? <div className="jj-pesan">{m.sebab}</div> : null}</td>
                 </tr>
               );
             })}

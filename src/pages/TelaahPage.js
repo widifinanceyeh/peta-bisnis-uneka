@@ -5,7 +5,7 @@ import {
 } from '../naskah';
 import { himpunanBaru, himpunanLama, indeksKelompok } from '../utils/aras';
 import { urutkan } from '../utils/langkah';
-import { ChipOrgan } from '../components/PitaPeta';
+import PitaPeta, { ChipOrgan } from '../components/PitaPeta';
 import { pasalId, labelAyat, KODE_TEMUAN, NAMA_TEMUAN } from '../utils/telaah';
 import { STORAGE_KEY } from '../config';
 import { RelAtas, TombolLaci } from '../components/TombolRel';
@@ -351,8 +351,10 @@ function Sorot({ teks, kata }) {
 const BELUM_TERPENUHI = ['BELUM ADA', 'SEBAGIAN'];
 
 /** v5.4: dipakai halaman Periksa. v5.9: bawaan semua butir; sakelar ke yang belum terpenuhi. */
-export function ButirPermen({ n, onBukaPasal, onPilih, onGalat }) {
+export function ButirPermen({ n, onBukaPasal, onPilih, onGalat, urusan, ctx, onBukaUrusan }) {
   const [semua, setSemua] = useState(true);
+  const [peta, setPeta] = useState({});   // v5.10: pita peta per butir, bawaan tertutup
+  const indeksU = useMemo(() => { const o = {}; (urusan || []).forEach((u) => { o[u.id] = u; }); return o; }, [urusan]);
   useEffect(() => { muatKepatuhan().catch((e) => onGalat && onGalat((e && e.message) || String(e))); }, [onGalat]);
   const k = n.kepatuhan;
   if (!k) return <div className="nk-muat">Membaca butir Permen…</div>;
@@ -384,9 +386,19 @@ export function ButirPermen({ n, onBukaPasal, onPilih, onGalat }) {
                     <td>{String(b.u || '').split(/[;,]/).map((t) => t.trim()).filter(Boolean).map((t) => {
                       const id = (/^[A-Z]\d+\.\d+/.exec(t) || [])[0];
                       return id ? <div key={t}><button type="button" className="tautan" onClick={() => onPilih(id)}>{t}</button></div> : <div key={t} className="kecil">{t}</div>;
-                    })}{b.uh.length ? <div className="jj-pesan">Tidak ada di peta: {b.uh.join(', ')}</div> : null}</td>
+                    })}{b.uh.length ? <div className="jj-pesan">Tidak ada di peta: {b.uh.join(', ')}</div> : null}
+                    {ctx && urusanButir(b, indeksU).length ? (
+                      <button type="button" className="tbl tbl-ringan pk-peta-tbl" aria-expanded={!!peta[b.k]}
+                              onClick={() => setPeta((x) => Object.assign({}, x, { [b.k]: !x[b.k] }))}>{peta[b.k] ? '▾ peta' : '▸ peta'}</button>
+                    ) : null}</td>
                     <td><span className={'tag-st tag-st-' + b.st.replace(/\s/g, '-')}>{b.st.toLowerCase()}</span> <span className="kecil-teks">{b.c}</span></td>
                   </tr>
+                  {peta[b.k] && ctx ? (
+                    <tr className="pk-peta-baris"><td colSpan={5}>
+                      <PitaPeta tahun="2026" daftar={urusanButir(b, indeksU).map((u) => ({ u, aras: new Set() }))} ctx={ctx}
+                                onTelaah={onPilih} onBukaUrusan={onBukaUrusan || onPilih} />
+                    </td></tr>
+                  ) : null}
                 </React.Fragment>
               );
             })}
@@ -396,6 +408,11 @@ export function ButirPermen({ n, onBukaPasal, onPilih, onGalat }) {
       </div>
     </>
   );
+}
+
+/** v5.10: urusan peta yang disebut satu butir Permen (kolom Urusan 04C). */
+function urusanButir(b, indeksU) {
+  return String(b.u || '').split(/[;,]/).map((t) => (/^[A-Z]\d+\.\d+/.exec(t.trim()) || [])[0]).filter((id) => id && indeksU[id]).map((id) => indeksU[id]);
 }
 
 /** "Pasal 47 ayat (13); Pasal 60" → tombol per pasal yang membuka halaman Naskah. */

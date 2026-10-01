@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { langganNaskah, ambilNaskah, muatTurunan, muatTeks, muatInitNaskah, muatTelaah, simpanTurunan } from '../naskah';
-import { labelAyat, petaAyatUrusan, monevPerAyat } from '../utils/telaah';
+import { labelAyat, petaAyatUrusan, monevPerAyat, tahapTurunan } from '../utils/telaah';
+import TautanDraf from '../components/TautanDraf';
 import LencanaMonev from '../components/LencanaMonev';
 import { RelAtas, TombolLaci } from '../components/TombolRel';
 import TombolTautan from '../components/TombolTautan';
@@ -96,7 +97,7 @@ export default function TurunanPage({ ruang, onBukaPasal, onBukaTelaah, onBukaUr
                 {isi.map((d) => (
                   <button type="button" key={d.id} className={'nk-item pk-item' + (aktif && aktif.id === d.id ? ' aktif' : '')} onClick={() => setPilih(d.id)} title={d.dokumen}>
                     <span className="nk-item-judul">{d.dokumen.replace(AWALAN, '')}{(d.baris || []).some((b) => monev[b.id]) ? <span className="tanda-m" title="Memuat ayat yang ditagih Monev">M</span> : null}</span>
-                    <span className={'td-st' + (/^ada/i.test(d.status) ? ' td-ada' : '')}>{d.status || '—'}</span>
+                    <span className={'td-st td-st-' + tahapTurunan(d).toLowerCase()} title={d.drafTautan ? 'Ada tautan draf' : ''}>{d.status || '—'}</span>
                   </button>
                 ))}
               </div>
@@ -158,7 +159,7 @@ export default function TurunanPage({ ruang, onBukaPasal, onBukaTelaah, onBukaUr
 }
 
 function sidik(d) {
-  return [d.dokumen, d.penetap, d.status, d.catatan, (d.baris || []).map((b) => b.id + '=' + (b.pokok || '')).join('|')].join('¦').length +
+  return [d.dokumen, d.penetap, d.status, d.catatan, d.drafJudul, d.drafTautan, (d.baris || []).map((b) => b.id + '=' + (b.pokok || '')).join('|')].join('¦').length +
     '.' + (d.diperbarui || '') + '.' + (d.baris || []).length;
 }
 
@@ -213,6 +214,7 @@ function BacaDok({ d, T, teks, milik, namaDok, onBukaPasal, monev }) {
     <>
       <dl className="pk-panduan">
         <dt>Status</dt><dd>{d.status || '—'}</dd>
+        {d.drafTautan ? <><dt>Draf</dt><dd><TautanDraf judul={d.drafJudul} tautan={d.drafTautan} cadangan={d.dokumen} /></dd></> : null}
         {d.catatan ? <><dt>Catatan</dt><dd className="td-pra">{d.catatan}</dd></> : null}
       </dl>
       <div className="blok-label td-label">DASAR AYAT DAN POKOK URUSAN ({baris.length})</div>
@@ -235,11 +237,19 @@ function FormDok({ d, T, teks, milik, namaDok, siap, onBukaPasal, onGalat, onTer
   // Isian (termasuk daftar ayat dan pokok urusan) disimpan sebagai draf di peramban sampai simpan berhasil.
   const [f, setF, lepas, adaDraf] = useDraf('turunan57:' + (d ? d.id : 'baru'), {
     dokumen: d ? d.dokumen : '', penetap: d ? d.penetap : T.penetap[0], status: d ? d.status : (T.pilihanStatus[0] || ''),
-    catatan: d ? d.catatan : '', baris: barisAwal(d)
+    catatan: d ? d.catatan : '', baris: barisAwal(d), drafJudul: d ? d.drafJudul || '' : '', drafTautan: d ? d.drafTautan || '' : ''
   });
   const [pesan, setPesan] = useState(adaDraf ? 'Isian yang belum tersimpan dipulihkan.' : (pesanAwal || ''));
   const [buka, setBuka] = useState(false);
   const ubah = (k) => (e) => { const v = e.target.value; setF((x) => Object.assign({}, x, { [k]: v })); };
+  // v5.10: tautan draf diisi saat status masih "Belum ada" = status langsung menjadi tahap penyusunan (server berbuat sama).
+  const tahapSusun = (T.pilihanStatus || []).find((p) => /penyusunan|proses|draf/i.test(p));
+  const ubahTautan = (e) => {
+    const v = e.target.value;
+    setF((x) => Object.assign({}, x, { drafTautan: v },
+      v.trim() && tahapSusun && x.status === (T.pilihanStatus || [])[0] ? { status: tahapSusun } : {}));
+  };
+  const tautanSalah = !!String(f.drafTautan || '').trim() && !/^https?:\/\/\S+$/i.test(String(f.drafTautan || '').trim());
   const ubahPokok = (id, v) => setF((x) => Object.assign({}, x, { baris: x.baris.map((b) => (b.id === id ? Object.assign({}, b, { pokok: v }) : b)) }));
   const buang = (id) => setF((x) => Object.assign({}, x, { baris: x.baris.filter((b) => b.id !== id) }));
   const tambah = (id) => setF((x) => (x.baris.some((b) => b.id === id) ? x : Object.assign({}, x, { baris: x.baris.concat([{ id, pokok: '' }]) })));
@@ -249,6 +259,7 @@ function FormDok({ d, T, teks, milik, namaDok, siap, onBukaPasal, onGalat, onTer
     try {
       const h = await simpanTurunan({
         id: d ? d.id : '', dokumen: f.dokumen, penetap: f.penetap, status: f.status, catatan: f.catatan,
+        drafJudul: f.drafJudul || '', drafTautan: String(f.drafTautan || '').trim(),
         ayat: f.baris.map((b) => ({ id: b.id, pokok: b.pokok })), oleh: oleh()
       });
       lepas();
@@ -268,6 +279,12 @@ function FormDok({ d, T, teks, milik, namaDok, siap, onBukaPasal, onGalat, onTer
         <label>Penetap<select className="inp" value={f.penetap} onChange={ubah('penetap')}>{T.penetap.map((p) => <option key={p}>{p}</option>)}</select></label>
         <label>Status<select className="inp" value={f.status} onChange={ubah('status')}>{T.pilihanStatus.map((p) => <option key={p}>{p}</option>)}</select></label>
       </div>
+      <div className="td-dua td-draf-isi">
+        <label>Judul draf<input className="inp" value={f.drafJudul || ''} onChange={ubah('drafJudul')} placeholder={f.dokumen || 'Judul dokumen draf'} /></label>
+        <label>Tautan draf<input className="inp" type="url" value={f.drafTautan || ''} onChange={ubahTautan} placeholder="https://docs.google.com/…" /></label>
+      </div>
+      {tautanSalah ? <div className="jj-pesan">Tautan harus diawali https:// dan tanpa spasi.</div>
+        : f.drafTautan ? <div className="kecil">Tampil sebagai: <TautanDraf judul={f.drafJudul} tautan={f.drafTautan} cadangan={f.dokumen} /></div> : null}
 
       <div className="blok-label td-label">DASAR AYAT DAN POKOK URUSAN ({baris.length})</div>
       <div className="td-tabel">
@@ -291,7 +308,7 @@ function FormDok({ d, T, teks, milik, namaDok, siap, onBukaPasal, onGalat, onTer
       <Ringkasan baris={f.baris} teks={teks} d={d} />
       <label>Catatan<textarea className="inp" rows={2} value={f.catatan} onChange={ubah('catatan')} /></label>
       <div className="tl-aksi">
-        <button type="button" className="tbl" onClick={simpan} disabled={!siap}>{/^Gagal/.test(pesan) ? 'Simpan ulang' : 'Simpan'}</button>
+        <button type="button" className="tbl" onClick={simpan} disabled={!siap || tautanSalah}>{/^Gagal/.test(pesan) ? 'Simpan ulang' : 'Simpan'}</button>
         {pesan ? <span className="kecil">{pesan}</span> : null}
       </div>
     </div>
