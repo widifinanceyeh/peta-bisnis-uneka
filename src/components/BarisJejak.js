@@ -111,6 +111,12 @@ export default function BarisJejak({
         {kanan && pertama ? (dasar && dasar.length
           ? <ul className="daftar-rapat">{dasar.map((b, i) => <li key={i}>{b}</li>)}</ul>
           : <span className="redup jj-ikut">Mengikuti garis besar pasal.</span>) : null}
+        {!kanan && kiri && jejak && (String(jejak.alasan || '').trim() || String(jejak.dialihkan || '').trim()) ? (
+          <ul className="daftar-rapat">
+            {String(jejak.alasan || '').trim() ? <li>{jejak.alasan}</li> : null}
+            {String(jejak.dialihkan || '').trim() ? <li>Dialihkan ke {jejak.dialihkan}.</li> : null}
+          </ul>
+        ) : null}
       </div>
 
       {terbuka && jejak && bisaSunting ? (

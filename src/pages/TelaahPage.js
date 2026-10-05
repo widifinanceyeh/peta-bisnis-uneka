@@ -452,11 +452,13 @@ export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
   if (hapus) {
     const ok = (x) => !!(x.jejak && x.jejak.dikonfirmasi);
     const isi = L.baris.filter((x) => x.j === 'dihapus' && (!belum || !ok(x)));
+    // v5.12: kotak alasan terisi dari alasan yang sudah tersimpan di tab 07, selama belum diketik ulang.
+    const isiAlasan = (x) => (draf[x.id] && draf[x.id].alasan !== undefined ? draf[x.id].alasan : ((x.jejak && x.jejak.alasan) || ''));
     const setuju = async (x) => {
-      const d = draf[x.id] || {};
-      if (!String(d.alasan || '').trim()) { tulisPesan(x.id, 'Alasan wajib diisi.'); return; }
+      const alasan = isiAlasan(x);
+      if (!String(alasan || '').trim()) { tulisPesan(x.id, 'Alasan wajib diisi.'); return; }
       tulisPesan(x.id, 'Menyimpan…');
-      try { await konfirmasiHapusLuar(x, d.alasan, oleh()); hapusDraf(x.id); tulisPesan(x.id, ''); }
+      try { await konfirmasiHapusLuar(x, alasan, oleh()); hapusDraf(x.id); tulisPesan(x.id, ''); }
       catch (e) { tulisPesan(x.id, 'Gagal disimpan (' + ((e && e.message) || String(e)) + '). Ketikan tetap di sini.'); }
     };
     return (
@@ -476,7 +478,7 @@ export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
                     ) : (
                       <div className="tl-putus">
                         <TandaSelesai ok={false} />
-                        <textarea className="inp" rows={2} placeholder="Alasan setuju dihapus (wajib)" value={(draf[x.id] && draf[x.id].alasan) || ''} onChange={(e) => set(x.id, { alasan: e.target.value })} />
+                        <textarea className="inp" rows={2} placeholder="Alasan setuju dihapus (wajib)" value={isiAlasan(x)} onChange={(e) => set(x.id, { alasan: e.target.value })} />
                         <div className="tl-aksi">
                           <button type="button" className="tbl" onClick={() => setuju(x)}>{/^Gagal/.test(pesan[x.id] || '') ? 'Simpan ulang' : 'Setuju dihapus'}</button>
                           <button type="button" className="tbl tbl-ringan" onClick={() => onBukaPasal(x.pasal)}>Pertahankan… (buka Naskah)</button>

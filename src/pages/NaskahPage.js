@@ -156,6 +156,17 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
     return t;
   }, [sidik, lihat, pasal]);
   const catatan = useMemo(() => ikatCatatan(data), [data]);
+  // v5.12: catatan per ayat dari kolom Alasan jejak (tab 07) melengkapi baris Dasar perubahan dari Doc.
+  const alasanAyat = useMemo(() => {
+    const m = {};
+    ((data && data.jejak) || []).forEach((j) => {
+      const t = String(j.alasan || '').trim();
+      if (!j.id26 || !t) return;
+      m[j.id26] = m[j.id26] || [];
+      if (m[j.id26].indexOf(t) === -1) m[j.id26].push(t);
+    });
+    return m;
+  }, [data]);
   const baris = useMemo(() => susunBaris(data), [data]);
   const kerja = ruang === 'kerja';
   const hanyaBerubah = kerja && saring === 'berubah';
@@ -416,7 +427,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
                 <BarisJejak key={b.kunci} baris={b} pasal={pasal} cfg={cfg} init={init} sorot={kerja && sorot}
                             terbuka={terbuka === b.kunci} onBuka={() => setTerbuka(b.kunci)} onTutup={() => setTerbuka(null)}
                             onPilihPasal={onPilihPasal} onGalat={onGalat} bisaSunting={kerja}
-                            pertama={pertama} dasar={k ? catatan.per[k.id] : null} penanda={k ? penanda[k.id] : null}
+                            pertama={pertama} dasar={k ? gabungDasar(catatan.per[k.id], alasanAyat[k.id]) : null} penanda={k ? penanda[k.id] : null}
                             warna={warna} redaksi={k ? redaksiAyat[k.id] : null}
                             pita={daftarUrusan && daftarUrusan.length
                               ? (kerja
@@ -489,4 +500,11 @@ function susunBaris(data) {
     return 99999;
   };
   return out.sort((x, y) => urut(x) - urut(y));
+}
+
+/** v5.12: baris Dasar perubahan dari Doc lebih dulu, lalu catatan Alasan jejak yang belum tertulis. */
+function gabungDasar(dariDoc, dariJejak) {
+  const out = (dariDoc || []).slice();
+  (dariJejak || []).forEach((t) => { if (out.indexOf(t) === -1) out.push(t); });
+  return out;
 }
