@@ -5,6 +5,7 @@ import LencanaMonev from './LencanaMonev';
 import { simpanJejak } from '../naskah';
 import { labelAyatLama } from '../utils/rujukan';
 import { potongSorotan } from '../utils/telaah';
+import { pecahRujukan } from '../utils/rujukanHukum';
 import { STORAGE_KEY } from '../config';
 import { bacaDraf, tulisDraf, hapusDraf } from '../hooks/useDraf';
 
@@ -17,7 +18,7 @@ import { bacaDraf, tulisDraf, hapusDraf } from '../hooks/useDraf';
  */
 export default function BarisJejak({
   baris, pasal, cfg, init, sorot, terbuka, onBuka, onTutup, onPilihPasal, onGalat,
-  pertama, dasar, penanda, pita, pitaKiri, warna, bisaSunting, redaksi
+  pertama, dasar, penanda, pita, pitaKiri, warna, bisaSunting, redaksi, onDh
 }) {
   const { jejak, kiri, kanan } = baris;
   const warnaSt = warnaStatus(cfg, jejak ? jejak.status : '');
@@ -109,11 +110,11 @@ export default function BarisJejak({
 
       <div className="jj-sel jj-dasar">
         {kanan && pertama ? (dasar && dasar.length
-          ? <ul className="daftar-rapat">{dasar.map((b, i) => <li key={i}>{b}</li>)}</ul>
+          ? <ul className="daftar-rapat">{dasar.map((b, i) => <li key={i}><TeksRujukan teks={b} onDh={onDh} /></li>)}</ul>
           : <span className="redup jj-ikut">Mengikuti garis besar pasal.</span>) : null}
         {!kanan && kiri && jejak && (String(jejak.alasan || '').trim() || String(jejak.dialihkan || '').trim()) ? (
           <ul className="daftar-rapat">
-            {String(jejak.alasan || '').trim() ? <li>{jejak.alasan}</li> : null}
+            {String(jejak.alasan || '').trim() ? <li><TeksRujukan teks={jejak.alasan} onDh={onDh} /></li> : null}
             {String(jejak.dialihkan || '').trim() ? <li>Dialihkan ke {jejak.dialihkan}.</li> : null}
           </ul>
         ) : null}
@@ -303,4 +304,20 @@ function PilihAyat({ judul, jenis, nilai, pasalAsal, indeks, onPilih }) {
 function pasalDariIdLokal(id) {
   const m = /^[A-Z](\d{3})\.\d+$/.exec(String(id || ''));
   return m ? Number(m[1]) : 0;
+}
+
+/**
+ * v5.13: kalimat catatan dengan rujukan peraturan yang dapat diklik; bunyinya dibuka pada lembar Dasar hukum
+ * yang sama dengan Dasar hukum pasal.
+ */
+export function TeksRujukan({ teks, onDh }) {
+  const bagian = pecahRujukan(teks);
+  if (!onDh || !bagian.some((b) => b.q)) return <>{teks}</>;
+  return (
+    <>
+      {bagian.map((b, i) => (b.q
+        ? <button type="button" key={i} className="rujukan-dh" onClick={() => onDh({ t: teks, q: b.q })} title="Buka bunyi aturan">{b.t}</button>
+        : <React.Fragment key={i}>{b.t}</React.Fragment>))}
+    </>
+  );
 }

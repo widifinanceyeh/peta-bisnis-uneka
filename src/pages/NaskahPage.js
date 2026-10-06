@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { langganNaskah, ambilNaskah, muatInitNaskah, muatBab, muatTelaah, muatDasarHukumPasal, muatTeks } from '../naskah';
 import { RelAtas, TombolLaci } from '../components/TombolRel';
 import TombolTautan from '../components/TombolTautan';
-import BarisJejak from '../components/BarisJejak';
+import BarisJejak, { TeksRujukan } from '../components/BarisJejak';
 import PitaPeta, { PetaBaris } from '../components/PitaPeta';
 import PanelDasarHukum from '../components/PanelDasarHukum';
 import { petaAyatUrusan, petaAyatLama, redaksiPerAyat, ikatCatatan, penandaAyat, pasalBerpenanda, hitungTugas, monevPasal } from '../utils/telaah';
 import { STORAGE_KEY } from '../config';
+import { hanyaLabel, jenisJejak, judulSama } from '../utils/rujukanHukum';
 
 /**
  * Halaman Naskah (v5.4): berangkat dari Bab dan Pasal.
@@ -44,6 +45,9 @@ function tulisLokal(k, v) {
   try { window.localStorage.setItem(k, v); } catch (e) { /* abaikan */ }
 }
 
+// v5.13: saringan jenis perubahan ayat (label pada catatan ayat; ayat dihapus dari status jejak).
+const JENIS = [['substansi', 'Substansi'], ['baru', 'Muatan baru'], ['hapus', 'Dihapus']];
+
 const SARINGAN = [
   ['semua', 'Semua'], ['monev', 'Monev'], ['tugas', 'Tugas YEH/UNEKA'], ['usulan', 'Ayat dihapus belum dikonfirmasi'], ['temuan', 'Ada temuan'],
   ['redaksi', 'Usulan redaksi'], ['berubah', 'Hanya ayat yang berubah']
@@ -57,6 +61,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
   const [sorot, setSorot] = useState(() => bacaLokal(STORAGE_KEY.NASKAH_SOROT, '0') === '1');
   const [pita, setPita] = useState(() => bacaLokal(STORAGE_KEY.NASKAH_PITA, '1') !== '0');
   const [ciut, setCiut] = useState(() => bacaLokal(STORAGE_KEY.NASKAH_CIUT, '0') === '1');
+  const [jenis, setJenis] = useState(() => bacaLokal(STORAGE_KEY.NASKAH_JENIS, 'semua'));
   const [galatBab, setGalatBab] = useState('');
   const [digulir, setDigulir] = useState(false);
   const [tahan, setTahan] = useState(false);
@@ -81,6 +86,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
   useEffect(() => { tulisLokal(STORAGE_KEY.NASKAH_SOROT, sorot ? '1' : '0'); }, [sorot]);
   useEffect(() => { tulisLokal(STORAGE_KEY.NASKAH_PITA, pita ? '1' : '0'); }, [pita]);
   useEffect(() => { tulisLokal(STORAGE_KEY.NASKAH_CIUT, ciut ? '1' : '0'); }, [ciut]);
+  useEffect(() => { tulisLokal(STORAGE_KEY.NASKAH_JENIS, jenis); }, [jenis]);
 
   const init = n.init;
   const telaah = n.telaah;
@@ -170,20 +176,41 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
   const baris = useMemo(() => susunBaris(data), [data]);
   const kerja = ruang === 'kerja';
   const hanyaBerubah = kerja && saring === 'berubah';
+  // Mode rapat tidak menampilkan baris ayat 2025 yang dihapus, jadi saringan "Dihapus" hanya ada di Mode kerja.
+  const jenisAktif = jenis !== 'semua' && (kerja || jenis !== 'hapus') ? jenis : 'semua';
+  const jenisBaris = useCallback((b) => jenisJejak(b.jejak, cfg.label), [cfg.label]);
   const tampil = useMemo(() => {
+    const cocok = (b) => jenisAktif === 'semua' || (b.jejak && jenisBaris(b) === jenisAktif);
     if (!kerja) {
       // Mode rapat: satu baris per ayat 2026, tanpa baris yang hanya berisi ayat 2025.
       const ada = new Set();
-      return baris.filter((b) => { if (!b.kanan || ada.has(b.kanan.id)) return false; ada.add(b.kanan.id); return true; });
+      return baris.filter((b) => { if (!b.kanan || ada.has(b.kanan.id) || !cocok(b)) return false; ada.add(b.kanan.id); return true; });
     }
-    return hanyaBerubah && cfg.label ? baris.filter((b) => !b.jejak || b.jejak.status !== cfg.label.TETAP) : baris;
-  }, [baris, kerja, hanyaBerubah, cfg.label]);
+    const dasar = hanyaBerubah && cfg.label ? baris.filter((b) => !b.jejak || b.jejak.status !== cfg.label.TETAP) : baris;
+    return dasar.filter(cocok);
+  }, [baris, kerja, hanyaBerubah, cfg.label, jenisAktif, jenisBaris]);
+  // Jumlah ayat per jenis pada pasal yang dibuka (ayat 2026 dihitung sekali; ayat dihapus per ayat 2025).
+  const hitungJenis = useMemo(() => {
+    const o = { substansi: 0, baru: 0, hapus: 0 };
+    if (!data) return o;
+    const sdh = new Set();
+    baris.forEach((b) => {
+      if (!b.jejak) return;
+      const j = jenisBaris(b);
+      if (j === 'hapus') { if (b.kiri && b.kiri.pasal === data.pasal) o.hapus++; return; }
+      if (!b.kanan || b.kanan.pasal !== data.pasal || sdh.has(b.kanan.id)) return;
+      sdh.add(b.kanan.id);
+      if (o[j] !== undefined) o[j]++;
+    });
+    return o;
+  }, [baris, data, jenisBaris]);
 
   const tersaring = useMemo(() => {
     const q = cari.trim().toLowerCase();
     const sr = kerja ? saring : 'semua';        // ruang Rapat: tanpa saringan
     return daftar.filter((d) => {
       if (q && !(String(d.pasal) === q || String(d.judul || '').toLowerCase().indexOf(q) !== -1 || String(d.bab).toLowerCase() === q)) return false;
+      if (jenisAktif !== 'semua' && d.jenis && !d.jenis[jenisAktif]) return false;
       const saring = sr;
       if (saring === 'monev') return pasalMonev.has(d.pasal);
       if (saring === 'tugas') return d.sorot > 0;
@@ -192,7 +219,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
       if (saring === 'redaksi') return d.redaksi > 0;
       return true;
     });
-  }, [daftar, cari, saring, kerja, pasalMonev, pasalTemuan]);
+  }, [daftar, cari, saring, kerja, pasalMonev, pasalTemuan, jenisAktif]);
 
   // v5.5: cari isi ayat di seluruh naskah (≥ 3 huruf, bukan nomor pasal), dari salinan bunyi seluruh ayat.
   const qIsi = cari.trim().length >= 3 && !/^\d+$/.test(cari.trim()) ? cari.trim().toLowerCase() : '';
@@ -239,7 +266,12 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
     );
   }
 
-  const judulBab = (init.bab.find((b) => info && b.bab === info.bab) || {}).judulBab || '';
+  const babInfo = init.bab.find((b) => info && b.bab === info.bab) || {};
+  const judulBab = babInfo.judulBab || '';
+  // v5.13: judul pada Statuta 2025 (pasal asal menurut jejak) bila berbeda dari judul 2026.
+  const babLama = (babInfo.lama || []).filter((x) => !(x.bab === babInfo.bab && judulSama(x.judulBab, judulBab)));
+  const asal = info && info.asal;
+  const judulLamaBeda = !!asal && (!asal.judul || !judulSama(asal.judul, info.judul) || asal.pasal !== info.pasal);
   const usulan = data && cfg.label ? data.jejak.filter((j) => !j.dikonfirmasi && j.status === cfg.label.HAPUS).length : 0;
   const tugas = {};
   if (data) data.ayat26.forEach((a) => { const t = hitungTugas(a.sorot, warna); Object.keys(t).forEach((k) => { tugas[k] = (tugas[k] || 0) + t[k]; }); });
@@ -292,7 +324,8 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
                     {kerja && alasanPasal(d, pasalTemuan).length
                       ? <i className="nk-perlu" title={'Perlu tindakan: ' + alasanPasal(d, pasalTemuan).join(', ')} aria-label="perlu tindakan">●</i>
                       : <span />}
-                    <span className="nk-item-no">Pasal {d.pasal}{berubah.has(d.pasal) ? <i className="nk-berubah" title="Berubah sejak terakhir dibuka" aria-label="berubah sejak terakhir dibuka">●</i> : null}</span>
+                    <span className="nk-item-no">Pasal {d.pasal}{berubah.has(d.pasal) ? <i className="nk-berubah" title="Berubah sejak terakhir dibuka" aria-label="berubah sejak terakhir dibuka">●</i> : null}
+                      {jenisAktif !== 'semua' && d.jenis ? <span className="nk-jml" title={d.jenis[jenisAktif] + ' ayat ' + labelJenis(jenisAktif).toLowerCase()}>{d.jenis[jenisAktif]}</span> : null}</span>
                     <span className="nk-item-judul">{d.judul}</span>
                     {pasalMonev.has(d.pasal) ? <span className="tanda-m" title="Terkunci Monev">M</span> : <span />}
                   </button>
@@ -318,9 +351,18 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
         </select>
 
         <div ref={kepalaRef} className={'nk-kepala5' + (ciut ? ' ciut' : '') + (ringkas ? ' ringkas' : '')}>
-          <div className="rincian-no">{info ? info.bab : ''}{judulBab ? ' · ' + judulBab : ''}</div>
+          <div className="rincian-no">{info ? info.bab : ''}{judulBab ? ' · ' + judulBab : ''}
+            {babLama.length && !ringkas ? (
+              <span className="nk-lama" title="Judul BAB pada Statuta 2025">{' '}Statuta 2025: {babLama.map((x, i) => (
+                <React.Fragment key={x.bab}>{i ? '; ' : ''}<s>{x.bab} · {x.judulBab}</s></React.Fragment>))}</span>
+            ) : null}
+          </div>
           <div className="nk-judul-baris">
             <h2 className="nk-judul">Pasal {pasal}{info && info.judul ? ' · ' + info.judul : ''}</h2>
+            {judulLamaBeda && !ringkas ? (
+              <span className="nk-lama" title="Judul pasal pada Statuta 2025">Statuta 2025: Pasal {asal.pasal}
+                {asal.judul ? <> · <s>{asal.judul}</s></> : ' (tanpa judul)'}</span>
+            ) : null}
             {nMonev ? <span className="lencana lencana-merah">Monev · {nMonev} butir</span> : null}
             {nMonevAda ? <span className="lencana lencana-abu" title="Butir Monev yang menurut Berita Acara sudah ada">Monev sudah ada · {nMonevAda}</span> : null}
             {kerja && perlu.length ? <span className="lencana lencana-perlu">Perlu tindakan: {perlu.join(' · ')}</span> : null}
@@ -342,7 +384,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
             <div className="nk-gb">
               <div>
                 <div className="blok-label">GARIS BESAR PERUBAHAN PASAL</div>
-                {catatan.umum.length ? <ul className="daftar-rapat">{catatan.umum.map((b, i) => <li key={i}>{b}</li>)}</ul>
+                {catatan.umum.length ? <ul className="daftar-rapat">{catatan.umum.map((b, i) => <li key={i}><TeksRujukan teks={b} onDh={setDh} /></li>)}</ul>
                   : <div className="redup kecil">{String(data.catatan.perubahan || '').trim() ? 'Seluruh catatan terikat ke ayat.' : '—'}</div>}
               </div>
               <div>
@@ -380,6 +422,18 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
             </button>
           )}
 
+        {data ? (
+          <div className="nk-jenis" role="group" aria-label="Saring jenis perubahan">
+            <span className="nk-jenis-label">Tampilkan</span>
+            <button type="button" className={'pil' + (jenisAktif === 'semua' ? ' aktif' : '')} onClick={() => setJenis('semua')} aria-pressed={jenisAktif === 'semua'}>Semua ayat</button>
+            {JENIS.filter(([k]) => kerja || k !== 'hapus').map(([k, l]) => (
+              <button type="button" key={k} className={'pil pil-jenis pil-' + k + (jenisAktif === k ? ' aktif' : '')} onClick={() => setJenis(jenisAktif === k ? 'semua' : k)}
+                      aria-pressed={jenisAktif === k} disabled={!hitungJenis[k] && jenisAktif !== k}>
+                {l} <b>{hitungJenis[k]}</b>
+              </button>
+            ))}
+          </div>
+        ) : null}
         {kerja ? (
           <div className="nk-alat">
             <button type="button" className={'pil' + (pita ? ' aktif' : '')} onClick={() => setPita(!pita)} aria-pressed={pita}>Peta bisnis</button>
@@ -426,7 +480,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
               return (
                 <BarisJejak key={b.kunci} baris={b} pasal={pasal} cfg={cfg} init={init} sorot={kerja && sorot}
                             terbuka={terbuka === b.kunci} onBuka={() => setTerbuka(b.kunci)} onTutup={() => setTerbuka(null)}
-                            onPilihPasal={onPilihPasal} onGalat={onGalat} bisaSunting={kerja}
+                            onPilihPasal={onPilihPasal} onGalat={onGalat} bisaSunting={kerja} onDh={setDh}
                             pertama={pertama} dasar={k ? gabungDasar(catatan.per[k.id], alasanAyat[k.id]) : null} penanda={k ? penanda[k.id] : null}
                             warna={warna} redaksi={k ? redaksiAyat[k.id] : null}
                             pita={daftarUrusan && daftarUrusan.length
@@ -439,7 +493,11 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
                               : null} />
               );
             })}
-            {!tampil.length ? <div className="jj-kosong-semua">Tidak ada baris yang berubah pada pasal ini.</div> : null}
+            {!tampil.length ? (
+              <div className="jj-kosong-semua">{jenisAktif !== 'semua'
+                ? 'Tidak ada ayat ' + labelJenis(jenisAktif).toLowerCase() + ' pada pasal ini.'
+                : 'Tidak ada baris yang berubah pada pasal ini.'}</div>
+            ) : null}
           </div>
         ) : null}
       </main>
@@ -502,9 +560,19 @@ function susunBaris(data) {
   return out.sort((x, y) => urut(x) - urut(y));
 }
 
-/** v5.12: baris Dasar perubahan dari Doc lebih dulu, lalu catatan Alasan jejak yang belum tertulis. */
+/**
+ * v5.12: baris Dasar perubahan dari Doc lebih dulu, lalu catatan Alasan jejak yang belum tertulis.
+ * v5.13: catatan yang hanya berupa label jenis ("Substansi.") diletakkan di depan baris pertama dari Doc.
+ */
 function gabungDasar(dariDoc, dariJejak) {
   const out = (dariDoc || []).slice();
-  (dariJejak || []).forEach((t) => { if (out.indexOf(t) === -1) out.push(t); });
+  const label = (dariJejak || []).filter(hanyaLabel);
+  (dariJejak || []).forEach((t) => { if (!hanyaLabel(t) && out.indexOf(t) === -1) out.push(t); });
+  if (label.length) {
+    if (out.length && !/^(Rumusan tetap|Redaksional|Penyesuaian istilah|Substansi|Muatan baru|Dipindah)\./i.test(out[0])) out[0] = label[0] + ' ' + out[0];
+    else if (!out.length) out.push(label[0]);
+  }
   return out;
 }
+
+function labelJenis(k) { return (JENIS.find((x) => x[0] === k) || ['', ''])[1]; }

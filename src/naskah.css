@@ -737,3 +737,28 @@ button.lencana-m-ada:hover { background: #e3e5ea; border-color: #9aa0ad; }
 .pk-peta-tbl { margin-top: 4px; font-size: 11px; padding: 1px 8px; }
 .pk-peta-baris > td { background: #fafbfe; padding-top: 2px; }
 .pk-dok + .pk-dok { margin-top: 4px; }
+
+/* ---------------------------------------------------------------- v5.13 */
+/* Rujukan peraturan di dalam catatan: dapat diklik, membuka bunyi aturan */
+.rujukan-dh { display: inline; font: inherit; color: var(--navy); background: none; border: 0; padding: 0; cursor: pointer; text-align: left;
+  text-decoration: underline dotted; text-decoration-color: #9aa6d6; text-underline-offset: 3px; }
+.rujukan-dh:hover { text-decoration-style: solid; text-decoration-color: var(--navy); background: var(--ice); }
+.rujukan-dh:focus-visible { outline: 2px solid var(--navy); outline-offset: 1px; border-radius: 2px; }
+/* Judul pada Statuta 2025 di kepala pasal */
+.nk-lama { font-size: 12px; font-weight: 400; color: var(--teks-redup); text-transform: none; letter-spacing: 0; }
+.nk-lama s { text-decoration-color: #c25b67; }
+.nk-judul-baris .nk-lama { flex-basis: 100%; margin-top: -4px; }
+/* Saringan jenis perubahan ayat */
+.nk-jenis { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; }
+.nk-jenis-label { color: var(--teks-redup); margin-right: 2px; }
+.nk-jenis .pil { font-size: 12px; padding: 3px 10px; }
+.nk-jenis .pil b { font-weight: 700; margin-left: 2px; }
+.nk-jenis .pil:disabled { opacity: .45; cursor: default; }
+.nk-jenis .pil:disabled:hover { border-color: var(--garis); }
+.pil-substansi:not(.aktif) b { color: #9a4a0b; }
+.pil-baru:not(.aktif) b { color: var(--hijau-teks); }
+.pil-hapus:not(.aktif) b { color: var(--merah-teks); }
+.nk-jml { display: inline-block; min-width: 18px; margin-left: 5px; padding: 0 5px; border-radius: 100px; font-size: 10.5px; font-weight: 700;
+  line-height: 16px; text-align: center; background: var(--navy); color: var(--putih); vertical-align: 1px; }
+.nk-kepala5.ringkas .nk-jenis { display: none; }
+@media print { .nk-jenis { display: none !important; } .rujukan-dh { text-decoration: none; color: inherit; } }

@@ -4,7 +4,7 @@
  * label kolom, judul halaman). Semuanya berasal dari sheet Cfg_*.
  */
 
-export const APP_VERSION = '5.12.0';
+export const APP_VERSION = '5.13.0';
 
 /**
  * URL deployment Apps Script (.../exec).
@@ -38,6 +38,7 @@ export const STORAGE_KEY = {
   TUTUP: 'pb.kelompokTutup.v42',
   NASKAH_PASAL: 'pb.naskahPasal.v49',
   NASKAH_SOROT: 'pb.naskahSorot.v49',
+  NASKAH_JENIS: 'pb.naskahJenis.v513',
   NASKAH_BERUBAH: 'pb.naskahBerubah.v49',
   NASKAH_MODE: 'pb.naskahMode.v50',
   NASKAH_PITA: 'pb.naskahPita.v50',
