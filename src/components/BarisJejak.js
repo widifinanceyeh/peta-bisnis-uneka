@@ -39,7 +39,7 @@ export default function BarisJejak({
             {bisaBeda ? <TeksBeda kiri={kiri.teks} kanan={kanan.teks} sisi="kiri" /> : <span className="teks-pre">{kiri.teks}</span>}
             {pitaKiri}
           </>
-        ) : <span className="jj-kosong">—</span>}
+        ) : <><span className="jj-kosong">—</span>{pitaKiri}</>}
       </div>
 
       <div className="jj-sel jj-tengah">

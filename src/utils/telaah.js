@@ -45,7 +45,8 @@ export function petaAyatLama(urusan, indeks25) {
   if (!indeks25) return out;
   const norm = (n) => String(n || '').replace(/[().\s]/g, '');
   (urusan || []).forEach((u) => {
-    if (!u.pasal || u.adaDiSumber === false || adaAras25(u)) return;   // v5.14: urusan berayat per aras ditaut lewat petaArasLama
+    // v5.14.1: urusan berayat per aras juga ditaut lewat dasarnya, agar ayat 2025 yang tidak menyebut organ tetap berpita.
+    if (!u.pasal || u.adaDiSumber === false) return;
     uraiRujukan(u.pasal).forEach((r) => {
       if (r.jenis !== 'ref') return;
       const daftar = indeks25[r.pasal] || [];

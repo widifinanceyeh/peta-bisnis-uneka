@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { himpunanBaru, himpunanLama } from '../utils/aras';
 import { urutkan } from '../utils/langkah';
+import { adaAras25 } from '../utils/telaah';
 
 /**
  * Pita peta bisnis (v5.1). Setiap naskah membawa petanya sendiri:
@@ -9,6 +10,8 @@ import { urutkan } from '../utils/langkah';
  * Kedua pita memakai lima kotak aras yang sama, sehingga perbedaan alur terbaca dengan membandingkan kolom kiri dan kanan.
  * v5.14: bila tab 04 sudah memuat ayat per aras (u.aras25), pita 2025 juga membingkai aras yang dituangkan ayat ini;
  * bila belum, pita 2025 memakai dasar pasal per urusan seperti sebelumnya.
+ * v5.14.1: pita 2025 memuat juga urusan yang tampil di pita 2026 pada baris yang sama (item.luar = ayat 2025 ini
+ * bukan dasarnya) dan menandai ayat 2025 yang tidak menyebut organ, sehingga kedua pita selalu sejajar.
  * Warna dan kode organ dibaca dari Cfg_Organ; nama aras dari Cfg_Aksi.
  */
 export default function PitaPeta({ daftar, ctx, tahun, onTelaah, onBukaUrusan }) {
@@ -21,7 +24,7 @@ export default function PitaPeta({ daftar, ctx, tahun, onTelaah, onBukaUrusan })
         <span className="pp-ikon">P</span>Peta bisnis {tahun}{daftar.length > 1 ? ' — ' + daftar.length + ' urusan' : ''}
         <KepalaMini ctx={ctx} />
       </div>
-      {daftar.map(({ u, aras, dasar }) => {
+      {daftar.map(({ u, aras, dasar, luar }) => {
         const baru = himpunanBaru(u.aras, ctx);
         const hLama = himpunanLama(u.lama, ctx);
         const berubah = u.adaDiSumber !== false && ctx.aksi.some((a) => !samaSet(baru[a.kode], hLama[a.kode]));
@@ -31,14 +34,12 @@ export default function PitaPeta({ daftar, ctx, tahun, onTelaah, onBukaUrusan })
           ? (k) => { const s = langkah.find((x) => x.aksi === k); return s ? s.organ : null; }
           : (k) => Array.from(baru[k] || [])[0] || null;
         return (
-          <div key={u.id}>
+          <div key={u.id} className={luar ? 'pp-luar' : undefined}>
             <button type="button" className="pp-ur" onClick={() => setBuka(Object.assign({}, buka, { [u.id]: !terbuka }))}
                     aria-expanded={terbuka} title={'Lihat alur ' + tahun}>
               <span className="pp-nama">{u.urusan}
                 <small>{u.id}
-                  {lama ? (aras && aras.size
-                    ? ' · ayat ini: ' + ctx.aksi.filter((a) => aras.has(a.kode)).map((a) => String(a.nama || a.kode).toLowerCase()).join(', ')
-                    : (dasar ? ' · dasar: ' + dasar : ''))
+                  {lama ? keterangan25(u, aras, dasar, luar, ctx)
                     : (berubah ? <b className="pp-berubah"> · alur berubah dari 2025</b> : (u.adaDiSumber === false ? ' · urusan baru' : ''))}
                 </small>
               </span>
@@ -52,6 +53,15 @@ export default function PitaPeta({ daftar, ctx, tahun, onTelaah, onBukaUrusan })
       })}
     </div>
   );
+}
+
+/** Keterangan di bawah nama urusan pada pita 2025. */
+function keterangan25(u, aras, dasar, luar, ctx) {
+  if (u.adaDiSumber === false) return ' · urusan baru, tidak ada pada peta 2025';
+  if (luar) return ' · ayat ini bukan dasarnya · dasar 2025: ' + (u.pasal || 'tidak diatur');
+  if (aras && aras.size) return ' · ayat ini: ' + ctx.aksi.filter((a) => aras.has(a.kode)).map((a) => String(a.nama || a.kode).toLowerCase()).join(', ');
+  if (adaAras25(u)) return ' · ayat ini tidak menyebut organ' + (dasar ? ' · dasar: ' + dasar : '');
+  return dasar ? ' · dasar: ' + dasar : '';
 }
 
 function samaSet(a, b) {
@@ -143,7 +153,8 @@ function Alur2025({ u, ctx, langkah, aras, onTelaah, onBukaUrusan }) {
       </div>
       <Kaki u={u} onTelaah={onTelaah} onBukaUrusan={onBukaUrusan}
             teks={per
-              ? 'Angka pada kotak = urutan langkah · bingkai biru = dituangkan ayat ini. Dasar urusan pada Statuta 2025: ' + (u.pasal || '—')
+              ? 'Angka pada kotak = urutan langkah · ' + (aras && aras.size ? 'bingkai biru = dituangkan ayat ini · ' : '') +
+                'teks di bawah kotak = ayat 2025 yang menyebut langkah itu. Dasar urusan pada Statuta 2025: ' + (u.pasal || '—')
               : 'Angka pada kotak = urutan langkah. Dasar pada Statuta 2025: ' + (u.pasal || '—')} />
     </div>
   );

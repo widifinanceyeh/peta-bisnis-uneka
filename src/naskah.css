@@ -382,6 +382,10 @@ mark.tugas { color: inherit; padding: 0 2px; border-radius: 2px; }
 .pp-25 { border-color: #dcdfe7; background: #f7f8fa; }
 .pp-25 .pp-j { background: #eceef3; color: #4d5466; border-bottom-color: #e2e5ec; }
 .pp-25 .pp-ikon { background: #6b7285; }
+/* v5.14.1: urusan yang tampil sejajar dengan pita 2026 tetapi bukan berdasar ayat 2025 ini. */
+.pp-luar .pp-ur { opacity: 0.62; }
+.pp-luar .pp-ur:hover { opacity: 1; }
+.pp-luar .pp-am span { box-shadow: none; }
 .pp-alur { background: var(--putih); padding: 8px 9px; border-bottom: 1px solid #eef0f7; }
 .pp-brs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; margin-top: 4px; }
 .pp-h { font-size: 8.5px; font-weight: 700; color: var(--teks-redup); text-align: center; letter-spacing: 0.2px; overflow-wrap: anywhere; line-height: 1.2; }

@@ -479,18 +479,28 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
               // per pasal 2025, pada ayat pertama yang disebut, dengan keterangan ayat mana saja yang menjadi dasarnya.
               const l = b.kiri;
               let daftarLama = null;
-              if (kerja && pita && l && ayatLama[l.id]) {
-                daftarLama = Object.keys(ayatLama[l.id]).filter((id) => {
+              if (kerja && pita) {
+                // v5.14.1: setiap urusan di pita kanan juga tampil di pita kiri pada baris yang sama (sejajar).
+                // Urusan yang tidak didasarkan pada ayat 2025 ini tampil redup dengan keterangan dasar 2025-nya.
+                const kananIds = (daftarUrusan || []).map((x) => x.u.id);
+                const diAyat = (l && ayatLama[l.id]) || {};
+                const item = (id) => {
+                  const aras = l && arasLama[l.id] ? arasLama[l.id][id] || null : null;
+                  return { u: indeksUrusan[id], lingkup: diAyat[id], aras, dasar: aras ? '' : dasarLama(init.indeks25, ayatLama, l.pasal, id) };
+                };
+                const tandai = (id) => { if (l) { sudahLama.add(id + '|' + l.id); sudahLama.add(id + '|P' + l.pasal); } };
+                const sejajar = kananIds.map((id) => {
+                  if (diAyat[id]) { tandai(id); return item(id); }
+                  return { u: indeksUrusan[id], luar: true };
+                });
+                const lain = Object.keys(diAyat).filter((id) => kananIds.indexOf(id) === -1).filter((id) => {
                   // Urusan berayat per aras tampil pada setiap ayatnya; selain itu sekali per pasal.
                   const kunci = arasLama[l.id] && arasLama[l.id][id] ? id + '|' + l.id : id + '|P' + l.pasal;
                   if (sudahLama.has(kunci)) return false;
                   sudahLama.add(kunci);
                   return true;
-                }).map((id) => {
-                  const aras = arasLama[l.id] ? arasLama[l.id][id] || null : null;
-                  return { u: indeksUrusan[id], lingkup: ayatLama[l.id][id], aras, dasar: aras ? '' : dasarLama(init.indeks25, ayatLama, l.pasal, id) };
-                })
-                  .filter((x) => x.u);
+                }).map(item);
+                daftarLama = sejajar.concat(lain).filter((x) => x.u);
               }
               return (
                 <BarisJejak key={b.kunci} baris={b} pasal={pasal} cfg={cfg} init={init} sorot={kerja && sorot}
@@ -527,7 +537,8 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
 function dasarLama(indeks25, ayatLama, pasal, idUrusan) {
   const daftar = (indeks25 && indeks25[pasal]) || [];
   const kena = daftar.filter((x) => ayatLama[x[0]] && ayatLama[x[0]][idUrusan]);
-  if (kena.length && kena.every((x) => ayatLama[x[0]][idUrusan] === 'pasal')) return 'seluruh Pasal ' + pasal;
+  // v5.14.1: ayat yang juga disebut per aras bertanda 'ayat'; dasar tetap seluruh pasal bila semua ayatnya tercakup.
+  if (kena.length && kena.length === daftar.length && kena.some((x) => ayatLama[x[0]][idUrusan] === 'pasal')) return 'seluruh Pasal ' + pasal;
   const nomor = kena.filter((x) => ayatLama[x[0]][idUrusan] === 'ayat').map((x) => String(x[1] || '').trim()).filter(Boolean);
   if (!nomor.length) return 'Pasal ' + pasal;
   const kurung = /^\(/.test(nomor[0]);
