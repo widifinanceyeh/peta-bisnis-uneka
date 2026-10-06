@@ -3,11 +3,15 @@ import { langganNaskah, ambilNaskah, muatInitNaskah, muatBab, muatTelaah, muatDa
 import { RelAtas, TombolLaci } from '../components/TombolRel';
 import TombolTautan from '../components/TombolTautan';
 import BarisJejak, { TeksRujukan } from '../components/BarisJejak';
-import PitaPeta, { PetaBaris } from '../components/PitaPeta';
+import PitaPeta from '../components/PitaPeta';
 import PanelDasarHukum from '../components/PanelDasarHukum';
-import { petaAyatUrusan, petaAyatLama, petaArasLama, redaksiPerAyat, ikatCatatan, penandaAyat, pasalBerpenanda, hitungTugas, monevPasal } from '../utils/telaah';
+import { petaAyatUrusan, petaArasLama, redaksiPerAyat, ikatCatatan, penandaAyat, pasalBerpenanda, hitungTugas, monevPasal } from '../utils/telaah';
 import { STORAGE_KEY } from '../config';
 import { hanyaLabel, jenisJejak, judulSama } from '../utils/rujukanHukum';
+import { ambilSasaran, langganSasaran, lepasSasaran } from '../utils/bukaAyat';
+
+/** v5.15: pita dengan urusan sebanyak ini atau lebih tampil tertutup lebih dulu. */
+const BATAS_RINGKAS = 6;
 
 /**
  * Halaman Naskah (v5.4): berangkat dari Bab dan Pasal.
@@ -130,11 +134,9 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
   }, [urusan, init]);
   const ayatUrusan = useMemo(() => petaAyatUrusan(urusanN, init && init.indeks26), [urusanN, init]);
   const arasLama = useMemo(() => petaArasLama(urusanN, init && init.indeks25), [urusanN, init]);
-  const ayatLama = useMemo(() => {
-    const o = petaAyatLama(urusanN, init && init.indeks25);
-    Object.keys(arasLama).forEach((id) => { Object.keys(arasLama[id]).forEach((u) => { (o[id] = o[id] || {})[u] = 'ayat'; }); });
-    return o;
-  }, [urusanN, init, arasLama]);
+  // v5.15: ayat tujuan dari rujukan pita yang diklik; digulir dan disorot sesudah pasalnya termuat.
+  const [sasaran, setSasaran] = useState(ambilSasaran);
+  useEffect(() => langganSasaran(setSasaran), []);
   const redaksiAyat = useMemo(() => redaksiPerAyat(data), [data]);
   const indeksUrusan = useMemo(() => { const o = {}; (urusanN || []).forEach((u) => { o[u.id] = u; }); return o; }, [urusanN]);
   const penanda = useMemo(() => penandaAyat(telaah), [telaah]);
@@ -200,6 +202,20 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
     const dasar = hanyaBerubah && cfg.label ? baris.filter((b) => !b.jejak || b.jejak.status !== cfg.label.TETAP) : baris;
     return dasar.filter(cocok);
   }, [baris, kerja, hanyaBerubah, cfg.label, jenisAktif, jenisBaris]);
+  // v5.15: gulir ke ayat tujuan rujukan pita yang diklik, lalu sorot sebentar.
+  useEffect(() => {
+    if (!sasaran || !data || sasaran.pasal !== pasal) return undefined;
+    const t = window.setTimeout(() => {
+      const el = document.querySelector('.jj-tabel ' + (sasaran.tahun === '2025' ? '[data-k="' : '[data-n="') + sasaran.id + '"]');
+      if (!el && jenisAktif !== 'semua') { setJenis('semua'); return; }
+      lepasSasaran();
+      if (!el) return;
+      if (el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+      el.classList.add('jj-sasaran');
+      window.setTimeout(() => el.classList.remove('jj-sasaran'), 2400);
+    }, 200);
+    return () => window.clearTimeout(t);
+  }, [sasaran, data, pasal, jenisAktif, tampil]);
   // Jumlah ayat per jenis pada pasal yang dibuka (ayat 2026 dihitung sekali; ayat dihapus per ayat 2025).
   const hitungJenis = useMemo(() => {
     const o = { substansi: 0, baru: 0, hapus: 0 };
@@ -297,7 +313,11 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
   if (nRedaksi) perlu.push(nRedaksi + ' usulan redaksi');
   Object.keys(tugas).forEach((k) => perlu.push(tugas[k] + ' tugas ' + k));
   const sudah = new Set();
-  const sudahLama = new Set();
+  const tampilPita = pita || !kerja;
+  const pitaPeta = (tahun, d) => (d && d.length
+    ? <PitaPeta tahun={tahun} daftar={d} ctx={ctx} onTelaah={onTelaah} onBukaUrusan={onBukaUrusan} onBukaPasal={onPilihPasal}
+                ringkas={d.length >= BATAS_RINGKAS} />
+    : null);
 
   return (
     <div className="nk-wrap">
@@ -472,35 +492,23 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
               const k = b.kanan;
               const pertama = !!k && !sudah.has(k.id);
               if (k) sudah.add(k.id);
-              const daftarUrusan = k && pertama && (pita || !kerja) && ayatUrusan[k.id]
-                ? Object.keys(ayatUrusan[k.id]).map((id) => ({ u: indeksUrusan[id], aras: ayatUrusan[k.id][id] })).filter((x) => x.u)
-                : null;
-              // Pita peta 2025: peta 2025 tidak membedakan aras per ayat, jadi satu urusan cukup tampil sekali
-              // per pasal 2025, pada ayat pertama yang disebut, dengan keterangan ayat mana saja yang menjadi dasarnya.
+              // v5.15 — satu aturan untuk dua sisi: pita hanya pada ayat yang menyebut langkah urusan (bingkai biru);
+              // setiap urusan yang tampil di satu sisi tampil juga di sisi lain pada baris yang sama. Bila ayat di sisi
+              // itu tidak menuangkan langkahnya, urusan tampil redup dengan keterangan letak langkahnya.
               const l = b.kiri;
+              let daftarUrusan = null;
               let daftarLama = null;
-              if (kerja && pita) {
-                // v5.14.1: setiap urusan di pita kanan juga tampil di pita kiri pada baris yang sama (sejajar).
-                // Urusan yang tidak didasarkan pada ayat 2025 ini tampil redup dengan keterangan dasar 2025-nya.
-                const kananIds = (daftarUrusan || []).map((x) => x.u.id);
-                const diAyat = (l && ayatLama[l.id]) || {};
-                const item = (id) => {
-                  const aras = l && arasLama[l.id] ? arasLama[l.id][id] || null : null;
-                  return { u: indeksUrusan[id], lingkup: diAyat[id], aras, dasar: aras ? '' : dasarLama(init.indeks25, ayatLama, l.pasal, id) };
-                };
-                const tandai = (id) => { if (l) { sudahLama.add(id + '|' + l.id); sudahLama.add(id + '|P' + l.pasal); } };
-                const sejajar = kananIds.map((id) => {
-                  if (diAyat[id]) { tandai(id); return item(id); }
-                  return { u: indeksUrusan[id], luar: true };
-                });
-                const lain = Object.keys(diAyat).filter((id) => kananIds.indexOf(id) === -1).filter((id) => {
-                  // Urusan berayat per aras tampil pada setiap ayatnya; selain itu sekali per pasal.
-                  const kunci = arasLama[l.id] && arasLama[l.id][id] ? id + '|' + l.id : id + '|P' + l.pasal;
-                  if (sudahLama.has(kunci)) return false;
-                  sudahLama.add(kunci);
-                  return true;
-                }).map(item);
-                daftarLama = sejajar.concat(lain).filter((x) => x.u);
+              if (tampilPita) {
+                const R = (k && ayatUrusan[k.id]) || {};
+                const L = (l && arasLama[l.id]) || {};
+                if (!k || pertama) {
+                  const ids = Object.keys(R).concat(Object.keys(L).filter((id) => !R[id])).filter((id) => indeksUrusan[id]);
+                  daftarUrusan = ids.map((id) => (R[id] ? { u: indeksUrusan[id], aras: R[id] } : { u: indeksUrusan[id], cermin: true }));
+                  daftarLama = ids.map((id) => (L[id] ? { u: indeksUrusan[id], aras: L[id] } : { u: indeksUrusan[id], cermin: true }));
+                } else {
+                  // Ayat 2026 yang sama sudah tampil (dan berpita) pada baris di atas.
+                  daftarLama = Object.keys(L).filter((id) => indeksUrusan[id]).map((id) => ({ u: indeksUrusan[id], aras: L[id] }));
+                }
               }
               return (
                 <BarisJejak key={b.kunci} baris={b} pasal={pasal} cfg={cfg} init={init} sorot={kerja && sorot}
@@ -508,14 +516,8 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
                             onPilihPasal={onPilihPasal} onGalat={onGalat} bisaSunting={kerja} onDh={setDh}
                             pertama={pertama} dasar={k ? gabungDasar(catatan.per[k.id], alasanAyat[k.id]) : null} penanda={k ? penanda[k.id] : null}
                             warna={warna} redaksi={k ? redaksiAyat[k.id] : null}
-                            pita={daftarUrusan && daftarUrusan.length
-                              ? (kerja
-                                ? <PitaPeta tahun="2026" daftar={daftarUrusan} ctx={ctx} onTelaah={onTelaah} onBukaUrusan={onBukaUrusan} />
-                                : <PetaBaris daftar={daftarUrusan} ctx={ctx} onTelaah={onTelaah} />)
-                              : null}
-                            pitaKiri={daftarLama && daftarLama.length
-                              ? <PitaPeta tahun="2025" daftar={daftarLama} ctx={ctx} onTelaah={onTelaah} onBukaUrusan={onBukaUrusan} />
-                              : null} />
+                            pita={pitaPeta('2026', daftarUrusan)}
+                            pitaKiri={pitaPeta('2025', daftarLama)} />
               );
             })}
             {!tampil.length ? (
@@ -531,19 +533,6 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
       {dh ? <PanelDasarHukum item={dh} pasal={pasal} onTutup={() => setDh(null)} onBukaPasal={onPilihPasal} /> : null}
     </div>
   );
-}
-
-/** Keterangan dasar urusan pada satu pasal Statuta 2025: "seluruh Pasal 8" atau "Pasal 4 ayat (1), (2), (3), (5)". */
-function dasarLama(indeks25, ayatLama, pasal, idUrusan) {
-  const daftar = (indeks25 && indeks25[pasal]) || [];
-  const kena = daftar.filter((x) => ayatLama[x[0]] && ayatLama[x[0]][idUrusan]);
-  // v5.14.1: ayat yang juga disebut per aras bertanda 'ayat'; dasar tetap seluruh pasal bila semua ayatnya tercakup.
-  if (kena.length && kena.length === daftar.length && kena.some((x) => ayatLama[x[0]][idUrusan] === 'pasal')) return 'seluruh Pasal ' + pasal;
-  const nomor = kena.filter((x) => ayatLama[x[0]][idUrusan] === 'ayat').map((x) => String(x[1] || '').trim()).filter(Boolean);
-  if (!nomor.length) return 'Pasal ' + pasal;
-  const kurung = /^\(/.test(nomor[0]);
-  return 'Pasal ' + pasal + (kurung ? ' ayat ' + nomor.map((x) => x.replace(/\.$/, '')).join(', ')
-    : ' angka ' + nomor.map((x) => x.replace(/[().]/g, '')).join(', '));
 }
 
 /** Alasan satu pasal ditandai "perlu tindakan" pada daftar pasal (ruang Kerja). */

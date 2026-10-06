@@ -149,7 +149,7 @@ export default function TurunanPage({ ruang, onBukaPasal, onBukaTelaah, onBukaUr
                            onTersimpan={(h) => setPesan({ [h.id]: 'Tersimpan.' })} />
                 : <BacaDok d={aktif} {...bersama} />}
               <KartuPeta d={aktif} ayatUrusan={ayatUrusan} indeksUrusan={indeksUrusan} ctx={ctx}
-                         onTelaah={onBukaTelaah} onBukaUrusan={onBukaUrusan} />
+                         onTelaah={onBukaTelaah} onBukaUrusan={onBukaUrusan} onBukaPasal={onBukaPasal} />
             </div>
           </>
         ) : <div className="redup">Belum ada dokumen.</div>}
@@ -359,7 +359,7 @@ function PilihAyat({ T, teks, milik, namaDok, dokId, ada, onPilih, monev }) {
   );
 }
 
-function KartuPeta({ d, ayatUrusan, indeksUrusan, ctx, onTelaah, onBukaUrusan }) {
+function KartuPeta({ d, ayatUrusan, indeksUrusan, ctx, onTelaah, onBukaUrusan, onBukaPasal }) {
   if (!ctx || !(d.urusan || []).length) return null;
   const daftar = d.urusan.map((id) => {
     const aras = new Set();
@@ -370,7 +370,7 @@ function KartuPeta({ d, ayatUrusan, indeksUrusan, ctx, onTelaah, onBukaUrusan })
   return (
     <>
       <div className="blok-label td-label">URUSAN PETA</div>
-      <PitaPeta tahun="2026" daftar={daftar} ctx={ctx} onTelaah={onTelaah} onBukaUrusan={onBukaUrusan} />
+      <PitaPeta tahun="2026" daftar={daftar} ctx={ctx} onTelaah={onTelaah} onBukaUrusan={onBukaUrusan} onBukaPasal={onBukaPasal} />
     </>
   );
 }

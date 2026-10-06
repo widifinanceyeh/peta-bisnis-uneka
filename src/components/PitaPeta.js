@@ -1,30 +1,41 @@
 import React, { useState } from 'react';
 import { himpunanBaru, himpunanLama } from '../utils/aras';
 import { urutkan } from '../utils/langkah';
-import { adaAras25 } from '../utils/telaah';
+import { adaAras25, hurufAras, ringkasRujukan } from '../utils/telaah';
+import { bukaRujukan, pecahTeksRujukan } from '../utils/bukaAyat';
 
 /**
  * Pita peta bisnis (v5.1). Setiap naskah membawa petanya sendiri:
  *   tahun="2025" : di bawah ayat Statuta 2025 — alur urusan menurut peta 2025 (langkah dan organ Statuta 2025).
- *   tahun="2026" : di bawah ayat rancangan 2026 — alur urusan menurut peta 2026; aras yang dituangkan ayat ini dibingkai.
+ *   tahun="2026" : di bawah ayat rancangan 2026 — alur urusan menurut peta 2026.
  * Kedua pita memakai lima kotak aras yang sama, sehingga perbedaan alur terbaca dengan membandingkan kolom kiri dan kanan.
- * v5.14: bila tab 04 sudah memuat ayat per aras (u.aras25), pita 2025 juga membingkai aras yang dituangkan ayat ini;
- * bila belum, pita 2025 memakai dasar pasal per urusan seperti sebelumnya.
- * v5.14.1: pita 2025 memuat juga urusan yang tampil di pita 2026 pada baris yang sama (item.luar = ayat 2025 ini
- * bukan dasarnya) dan menandai ayat 2025 yang tidak menyebut organ, sehingga kedua pita selalu sejajar.
+ *
+ * v5.15 — satu aturan untuk dua sisi:
+ *   - pita menempel pada ayat yang menyebut langkah urusan; aras yang dituangkan ayat ini dibingkai biru
+ *     (dengan huruf bila yang dirujuk hanya satu huruf);
+ *   - urusan yang tampil di satu sisi selalu tampil juga di sisi lain pada baris yang sama; bila ayat di sisi itu
+ *     tidak menuangkan langkahnya, urusan tampil redup (item.cermin) dengan keterangan letak langkahnya;
+ *   - rujukan ayat dapat diklik (onBukaPasal); ringkas = pita dengan banyak urusan tampil tertutup lebih dulu.
  * Warna dan kode organ dibaca dari Cfg_Organ; nama aras dari Cfg_Aksi.
  */
-export default function PitaPeta({ daftar, ctx, tahun, onTelaah, onBukaUrusan }) {
+export default function PitaPeta({ daftar, ctx, tahun, onTelaah, onBukaUrusan, onBukaPasal, ringkas }) {
   const [buka, setBuka] = useState({});
+  const [lebar, setLebar] = useState(false);
   if (!daftar || !daftar.length) return null;
   const lama = tahun === '2025';
+  const tutup = !!ringkas && !lebar;
   return (
     <div className={'pp' + (lama ? ' pp-25' : '')}>
       <div className="pp-j">
         <span className="pp-ikon">P</span>Peta bisnis {tahun}{daftar.length > 1 ? ' — ' + daftar.length + ' urusan' : ''}
-        <KepalaMini ctx={ctx} />
+        {ringkas ? (
+          <button type="button" className="pp-ringkas" onClick={() => setLebar(!lebar)} aria-expanded={!tutup}>
+            {tutup ? 'tampilkan' : 'sembunyikan'}
+          </button>
+        ) : null}
+        {tutup ? null : <KepalaMini ctx={ctx} />}
       </div>
-      {daftar.map(({ u, aras, dasar, luar }) => {
+      {tutup ? null : daftar.map(({ u, aras, cermin }) => {
         const baru = himpunanBaru(u.aras, ctx);
         const hLama = himpunanLama(u.lama, ctx);
         const berubah = u.adaDiSumber !== false && ctx.aksi.some((a) => !samaSet(baru[a.kode], hLama[a.kode]));
@@ -33,21 +44,25 @@ export default function PitaPeta({ daftar, ctx, tahun, onTelaah, onBukaUrusan })
         const isi = lama
           ? (k) => { const s = langkah.find((x) => x.aksi === k); return s ? s.organ : null; }
           : (k) => Array.from(baru[k] || [])[0] || null;
+        const letak = cermin ? (lama ? letak25(u) : letak26(u, ctx)) : '';
         return (
-          <div key={u.id} className={luar ? 'pp-luar' : undefined}>
+          <div key={u.id} className={cermin ? 'pp-luar' : undefined}>
             <button type="button" className="pp-ur" onClick={() => setBuka(Object.assign({}, buka, { [u.id]: !terbuka }))}
                     aria-expanded={terbuka} title={'Lihat alur ' + tahun}>
               <span className="pp-nama">{u.urusan}
                 <small>{u.id}
-                  {lama ? keterangan25(u, aras, dasar, luar, ctx)
-                    : (berubah ? <b className="pp-berubah"> · alur berubah dari 2025</b> : (u.adaDiSumber === false ? ' · urusan baru' : ''))}
+                  {cermin ? ' · ' + letak
+                    : (aras && aras.size ? ' · ayat ini: ' + namaAras(aras, ctx) : '')}
+                  {!lama && !cermin ? (berubah ? <b className="pp-berubah"> · alur berubah dari 2025</b> : (u.adaDiSumber === false ? ' · urusan baru' : '')) : null}
                 </small>
               </span>
-              <Mini ctx={ctx} isi={isi} tandai={aras} />
+              <Mini ctx={ctx} isi={isi} tandai={cermin ? null : aras} />
             </button>
             {terbuka ? (lama
-              ? <Alur2025 u={u} ctx={ctx} langkah={langkah} aras={aras} onTelaah={onTelaah} onBukaUrusan={onBukaUrusan} />
-              : <Alur2026 u={u} ctx={ctx} aras={aras} baru={baru} hLama={hLama} onTelaah={onTelaah} onBukaUrusan={onBukaUrusan} />) : null}
+              ? <Alur2025 u={u} ctx={ctx} langkah={langkah} aras={cermin ? null : aras} letak={letak} tahun={tahun}
+                          onTelaah={onTelaah} onBukaUrusan={onBukaUrusan} onBukaPasal={onBukaPasal} />
+              : <Alur2026 u={u} ctx={ctx} aras={cermin ? null : aras} baru={baru} hLama={hLama} letak={letak} tahun={tahun}
+                          onTelaah={onTelaah} onBukaUrusan={onBukaUrusan} onBukaPasal={onBukaPasal} />) : null}
           </div>
         );
       })}
@@ -55,13 +70,42 @@ export default function PitaPeta({ daftar, ctx, tahun, onTelaah, onBukaUrusan })
   );
 }
 
-/** Keterangan di bawah nama urusan pada pita 2025. */
-function keterangan25(u, aras, dasar, luar, ctx) {
-  if (u.adaDiSumber === false) return ' · urusan baru, tidak ada pada peta 2025';
-  if (luar) return ' · ayat ini bukan dasarnya · dasar 2025: ' + (u.pasal || 'tidak diatur');
-  if (aras && aras.size) return ' · ayat ini: ' + ctx.aksi.filter((a) => aras.has(a.kode)).map((a) => String(a.nama || a.kode).toLowerCase()).join(', ');
-  if (adaAras25(u)) return ' · ayat ini tidak menyebut organ' + (dasar ? ' · dasar: ' + dasar : '');
-  return dasar ? ' · dasar: ' + dasar : '';
+/** "mempertimbangkan, memutuskan (huruf f)" */
+function namaAras(aras, ctx) {
+  return ctx.aksi.filter((a) => aras.has(a.kode)).map((a) => {
+    const h = hurufAras(aras, a.kode);
+    return String(a.nama || a.kode).toLowerCase() + (h ? ' (huruf ' + h + ')' : '');
+  }).join(', ');
+}
+
+/** Letak langkah urusan pada Statuta 2025, untuk urusan cermin di pita 2025. */
+export function letak25(u) {
+  if (u.adaDiSumber === false) return 'urusan baru, tidak ada pada peta 2025';
+  if (!adaAras25(u)) return 'langkahnya tidak disebut di ayat Statuta 2025';
+  return 'langkahnya di 2025: ' + ringkasRujukan(u.aras25);
+}
+
+/** Letak langkah urusan pada rancangan 2026, untuk urusan cermin di pita 2026. */
+export function letak26(u, ctx) {
+  if (u.adaDiRancangan === false) return 'tidak ada pada peta 2026';
+  const teks = {};
+  ctx.aksi.forEach((a) => { const x = (u.aras || {})[a.kode]; if (x && x.pasal) teks[a.kode] = x.pasal; });
+  const r = ringkasRujukan(teks);
+  return r ? 'langkahnya di 2026: ' + r : 'langkahnya diatur di bawah Statuta';
+}
+
+/** Teks dengan rujukan ayat yang dapat diklik. */
+export function TeksRujukanPeta({ teks, tahun, onBukaPasal }) {
+  if (!onBukaPasal) return <>{teks}</>;
+  return (
+    <>
+      {pecahTeksRujukan(teks).map((p, i) => (p.r
+        ? <span key={i} role="button" tabIndex={0} className="pp-ruj" title={'Buka ' + p.t}
+                onClick={(e) => { e.stopPropagation(); bukaRujukan(tahun, p.r, onBukaPasal); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); bukaRujukan(tahun, p.r, onBukaPasal); } }}>{p.t}</span>
+        : <React.Fragment key={i}>{p.t}</React.Fragment>))}
+    </>
+  );
 }
 
 function samaSet(a, b) {
@@ -124,6 +168,7 @@ function KepalaAlur({ ctx }) {
   );
 }
 
+
 function Kaki({ u, teks, onTelaah, onBukaUrusan }) {
   return (
     <div className="pp-kaki">
@@ -134,7 +179,7 @@ function Kaki({ u, teks, onTelaah, onBukaUrusan }) {
   );
 }
 
-function Alur2025({ u, ctx, langkah, aras, onTelaah, onBukaUrusan }) {
+function Alur2025({ u, ctx, langkah, aras, letak, tahun, onTelaah, onBukaUrusan, onBukaPasal }) {
   const per = u.aras25 || null;   // v5.14: ayat Statuta 2025 per aras
   return (
     <div className="pp-alur pp-lama">
@@ -143,24 +188,25 @@ function Alur2025({ u, ctx, langkah, aras, onTelaah, onBukaUrusan }) {
         {ctx.aksi.map((a) => {
           const l = langkah.filter((s) => s.aksi === a.kode);
           const ini = !!(aras && aras.has(a.kode));
+          const h = ini ? hurufAras(aras, a.kode) : '';
           return (
             <span key={a.kode} className={'pp-c' + (l.length ? '' : ' pp-kosong') + (ini ? ' pp-ini' : '')}>
               {l.length ? l.map((s) => <ChipOrgan key={s.kunci} kode={s.organ} ctx={ctx} teks={String(s.nomor)} />) : 'tidak diatur'}
-              {per && l.length ? <em>{ini ? 'ayat ini' : (per[a.kode] || '')}</em> : null}
+              {per && l.length ? <em>{ini ? 'ayat ini' + (h ? ' (huruf ' + h + ')' : '')
+                : <TeksRujukanPeta teks={per[a.kode] || ''} tahun={tahun} onBukaPasal={onBukaPasal} />}</em> : null}
             </span>
           );
         })}
       </div>
       <Kaki u={u} onTelaah={onTelaah} onBukaUrusan={onBukaUrusan}
-            teks={per
-              ? 'Angka pada kotak = urutan langkah · ' + (aras && aras.size ? 'bingkai biru = dituangkan ayat ini · ' : '') +
-                'teks di bawah kotak = ayat 2025 yang menyebut langkah itu. Dasar urusan pada Statuta 2025: ' + (u.pasal || '—')
-              : 'Angka pada kotak = urutan langkah. Dasar pada Statuta 2025: ' + (u.pasal || '—')} />
+            teks={<>{letak ? <b>{letak.charAt(0).toUpperCase() + letak.slice(1)}. </b> : null}
+              Angka pada kotak = urutan langkah{aras && aras.size ? ' · bingkai biru = dituangkan ayat ini' : ''} · teks di bawah kotak = ayat 2025 yang menyebut langkah itu.
+              Dasar urusan pada Statuta 2025: <TeksRujukanPeta teks={u.pasal || '—'} tahun={tahun} onBukaPasal={onBukaPasal} /></>} />
     </div>
   );
 }
 
-function Alur2026({ u, ctx, aras, baru, hLama, onTelaah, onBukaUrusan }) {
+function Alur2026({ u, ctx, aras, baru, hLama, letak, tahun, onTelaah, onBukaUrusan, onBukaPasal }) {
   return (
     <div className="pp-alur">
       <KepalaAlur ctx={ctx} />
@@ -168,18 +214,20 @@ function Alur2026({ u, ctx, aras, baru, hLama, onTelaah, onBukaUrusan }) {
         {ctx.aksi.map((a) => {
           const x = (u.aras || {})[a.kode] || {};
           const ubah = u.adaDiSumber !== false && !samaSet(baru[a.kode], hLama[a.kode]);
-          const ini = aras && aras.has(a.kode);
+          const ini = !!(aras && aras.has(a.kode));
+          const h = ini ? hurufAras(aras, a.kode) : '';
           return (
             <span key={a.kode} className={'pp-c' + (ubah ? ' pp-ubah' : '') + (ini ? ' pp-ini' : '')}>
               {Array.from(baru[a.kode] || []).map((k) => <ChipOrgan key={k} kode={k} ctx={ctx} />)}
               <span className="pp-unit">{x.unit || '—'}</span>
-              <em>{ini ? 'ayat ini' : (x.pasal || '')}</em>
+              <em>{ini ? 'ayat ini' + (h ? ' (huruf ' + h + ')' : '') : <TeksRujukanPeta teks={x.pasal || ''} tahun={tahun} onBukaPasal={onBukaPasal} />}</em>
             </span>
           );
         })}
       </div>
       <Kaki u={u} onTelaah={onTelaah} onBukaUrusan={onBukaUrusan}
-            teks="Bingkai kuning = berbeda dari peta 2025 (lihat pita di kolom Statuta 2025) · bingkai biru = dituangkan ayat ini." />
+            teks={<>{letak ? <b>{letak.charAt(0).toUpperCase() + letak.slice(1)}. </b> : null}
+              Bingkai kuning = berbeda dari peta 2025 · bingkai biru = dituangkan ayat ini · "Diatur di bawah Statuta" = diatur dalam peraturan di bawah Statuta (unit kerja atau proses internal organ).</>} />
     </div>
   );
 }

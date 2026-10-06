@@ -396,7 +396,7 @@ export function ButirPermen({ n, onBukaPasal, onPilih, onGalat, urusan, ctx, onB
                   {peta[b.k] && ctx ? (
                     <tr className="pk-peta-baris"><td colSpan={5}>
                       <PitaPeta tahun="2026" daftar={urusanButir(b, indeksU).map((u) => ({ u, aras: new Set() }))} ctx={ctx}
-                                onTelaah={onPilih} onBukaUrusan={onBukaUrusan || onPilih} />
+                                onTelaah={onPilih} onBukaUrusan={onBukaUrusan || onPilih} onBukaPasal={onBukaPasal} />
                     </td></tr>
                   ) : null}
                 </React.Fragment>

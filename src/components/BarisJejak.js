@@ -28,7 +28,8 @@ export default function BarisJejak({
   const monev = pn ? pn.monev : [];
 
   return (
-    <div className={'jj-baris' + (terbuka ? ' jj-terbuka' : '') + (!jejak ? ' jj-tanpa' : '') + (monev.length && pertama ? ' jj-monev' : '')}>
+    <div className={'jj-baris' + (terbuka ? ' jj-terbuka' : '') + (!jejak ? ' jj-tanpa' : '') + (monev.length && pertama ? ' jj-monev' : '')}
+         data-k={kiri ? kiri.id : undefined} data-n={kanan ? kanan.id : undefined}>
       <div className="jj-sel jj-kiri">
         {kiri ? (
           <>
@@ -105,7 +106,7 @@ export default function BarisJejak({
             ) : null}
             {pita}
           </>
-        ) : <span className="redup kecil">sama dengan baris di atas · ({kanan.nomor})</span>) : <span className="jj-kosong">—</span>}
+        ) : <span className="redup kecil">sama dengan baris di atas · ({kanan.nomor})</span>) : <><span className="jj-kosong">—</span>{pita}</>}
       </div>
 
       <div className="jj-sel jj-dasar">

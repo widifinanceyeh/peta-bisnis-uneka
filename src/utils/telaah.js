@@ -26,7 +26,7 @@ export function petaAyatUrusan(urusan, indeks26) {
         const ids = r.ayat && r.ayat.length ? tautkan(r, indeks26).id : ((indeks26[r.pasal] || []).map((x) => x[0]));
         ids.forEach((id) => {
           const l = (out[id] = out[id] || {});
-          (l[u.id] = l[u.id] || new Set()).add(kode);
+          tandaiAras(l[u.id] = l[u.id] || new Set(), kode, r);
         });
       });
     });
@@ -374,6 +374,39 @@ export function susunKerja(n) {
   ];
 }
 
+/**
+ * v5.15: tambahkan aras ke himpunan; bila rujukan menyebut huruf, hurufnya dicatat pada s.huruf[kode]
+ * (mis. Pasal 29 ayat (5) huruf f), sehingga pita dapat menulis "ayat ini (huruf f)".
+ * Rujukan ayat utuh pada aras yang sama menghapus catatan huruf.
+ */
+function tandaiAras(s, kode, r) {
+  const baru = !s.has(kode);
+  s.add(kode);
+  const h = String((r && r.huruf) || '').trim();
+  if (!s.huruf) s.huruf = {};
+  if (!h) { if (!baru) delete s.huruf[kode]; else s.huruf[kode] = ''; return; }
+  if (baru) { s.huruf[kode] = h; return; }
+  if (s.huruf[kode]) s.huruf[kode] = Array.from(new Set(s.huruf[kode].split(', ').concat(h.split(', ')))).join(', ');
+}
+
+/** v5.15: teks huruf untuk satu aras pada himpunan hasil petaAyatUrusan/petaArasLama ('' bila ayat utuh). */
+export function hurufAras(s, kode) {
+  return (s && s.huruf && s.huruf[kode]) || '';
+}
+
+/** v5.15: rujukan ayat peta suatu urusan dalam satu teks ringkas ("Pasal 52 ayat (2); Pasal 53 ayat (2)"), tanpa catatan. */
+export function ringkasRujukan(teksPerAras) {
+  const out = [];
+  Object.keys(teksPerAras || {}).forEach((k) => {
+    uraiRujukan(teksPerAras[k]).forEach((r) => {
+      if (r.jenis !== 'ref') return;
+      const t = r.lanjutan ? 'Pasal ' + r.pasal + ' ' + r.teks : r.teks;
+      if (out.indexOf(t) === -1) out.push(t);
+    });
+  });
+  return out.join('; ');
+}
+
 /** v5.14: urusan peta 2025 yang sudah punya ayat per aras (tab 04, kolom "Ayat · …"). */
 export function adaAras25(u) {
   return !!(u && u.aras25 && Object.keys(u.aras25).some((k) => /Pasal\s+\d+/.test(String(u.aras25[k]))));
@@ -397,7 +430,7 @@ export function petaArasLama(urusan, indeks25) {
         const kena = r.ayat && r.ayat.length ? r.ayat.map((n) => daftar.find((x) => norm(x[1]) === String(n))).filter(Boolean) : daftar;
         kena.forEach((t) => {
           const l = (out[t[0]] = out[t[0]] || {});
-          (l[u.id] = l[u.id] || new Set()).add(kode);
+          tandaiAras(l[u.id] = l[u.id] || new Set(), kode, r);
         });
       });
     });

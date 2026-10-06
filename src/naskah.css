@@ -382,10 +382,16 @@ mark.tugas { color: inherit; padding: 0 2px; border-radius: 2px; }
 .pp-25 { border-color: #dcdfe7; background: #f7f8fa; }
 .pp-25 .pp-j { background: #eceef3; color: #4d5466; border-bottom-color: #e2e5ec; }
 .pp-25 .pp-ikon { background: #6b7285; }
-/* v5.14.1: urusan yang tampil sejajar dengan pita 2026 tetapi bukan berdasar ayat 2025 ini. */
+/* v5.15: urusan cermin — tampil sejajar dengan sisi seberang, tetapi langkahnya dituangkan di ayat lain. */
 .pp-luar .pp-ur { opacity: 0.62; }
 .pp-luar .pp-ur:hover { opacity: 1; }
 .pp-luar .pp-am span { box-shadow: none; }
+/* v5.15: rujukan ayat yang dapat diklik, tombol ringkas pita, dan sorotan ayat tujuan. */
+.pp-ruj { color: var(--navy); background: none; border: 0; padding: 0; text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; }
+.pp-ruj:hover { text-decoration-style: solid; }
+.pp-ringkas { margin-left: 8px; font: inherit; font-size: 10.5px; color: var(--navy); background: var(--putih); border: 1px solid #d7dcf0; border-radius: 100px; padding: 0 8px; cursor: pointer; }
+.jj-baris.jj-sasaran { box-shadow: inset 0 0 0 3px #e0b100; transition: box-shadow 0.3s; }
+@media print { .pp-ringkas { display: none; } .pp-ruj { text-decoration: none; color: inherit; } }
 .pp-alur { background: var(--putih); padding: 8px 9px; border-bottom: 1px solid #eef0f7; }
 .pp-brs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; margin-top: 4px; }
 .pp-h { font-size: 8.5px; font-weight: 700; color: var(--teks-redup); text-align: center; letter-spacing: 0.2px; overflow-wrap: anywhere; line-height: 1.2; }
