@@ -45,7 +45,7 @@ export function petaAyatLama(urusan, indeks25) {
   if (!indeks25) return out;
   const norm = (n) => String(n || '').replace(/[().\s]/g, '');
   (urusan || []).forEach((u) => {
-    if (!u.pasal || u.adaDiSumber === false) return;
+    if (!u.pasal || u.adaDiSumber === false || adaAras25(u)) return;   // v5.14: urusan berayat per aras ditaut lewat petaArasLama
     uraiRujukan(u.pasal).forEach((r) => {
       if (r.jenis !== 'ref') return;
       const daftar = indeks25[r.pasal] || [];
@@ -371,4 +371,35 @@ export function susunKerja(n) {
       selesai: 'Semua ayat delegasi menjadi dasar satu dokumen turunan.',
       cara: 'Buka menu Dokumen Turunan, pilih dokumen yang sesuai (atau buat baru), lalu tambahkan ayatnya beserta pokok urusan.' }
   ];
+}
+
+/** v5.14: urusan peta 2025 yang sudah punya ayat per aras (tab 04, kolom "Ayat · …"). */
+export function adaAras25(u) {
+  return !!(u && u.aras25 && Object.keys(u.aras25).some((k) => /Pasal\s+\d+/.test(String(u.aras25[k]))));
+}
+
+/**
+ * v5.14: peta ayat Statuta 2025 -> urusan -> aras yang dituangkan di ayat itu, dari u.aras25.
+ * Bentuknya sama dengan petaAyatUrusan (peta 2026), sehingga pita 2025 dapat membingkai aras "ayat ini".
+ * @return {Object<string, Object<string, Set<string>>>}
+ */
+export function petaArasLama(urusan, indeks25) {
+  const out = {};
+  if (!indeks25) return out;
+  const norm = (n) => String(n || '').replace(/[().\s]/g, '');
+  (urusan || []).forEach((u) => {
+    if (!adaAras25(u) || u.adaDiSumber === false) return;
+    Object.keys(u.aras25).forEach((kode) => {
+      uraiRujukan(u.aras25[kode]).forEach((r) => {
+        if (r.jenis !== 'ref') return;
+        const daftar = indeks25[r.pasal] || [];
+        const kena = r.ayat && r.ayat.length ? r.ayat.map((n) => daftar.find((x) => norm(x[1]) === String(n))).filter(Boolean) : daftar;
+        kena.forEach((t) => {
+          const l = (out[t[0]] = out[t[0]] || {});
+          (l[u.id] = l[u.id] || new Set()).add(kode);
+        });
+      });
+    });
+  });
+  return out;
 }

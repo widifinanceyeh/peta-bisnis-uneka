@@ -7,7 +7,8 @@ import { urutkan } from '../utils/langkah';
  *   tahun="2025" : di bawah ayat Statuta 2025 — alur urusan menurut peta 2025 (langkah dan organ Statuta 2025).
  *   tahun="2026" : di bawah ayat rancangan 2026 — alur urusan menurut peta 2026; aras yang dituangkan ayat ini dibingkai.
  * Kedua pita memakai lima kotak aras yang sama, sehingga perbedaan alur terbaca dengan membandingkan kolom kiri dan kanan.
- * Peta 2025 mencatat dasar pasal per urusan (bukan per aras), sehingga pita 2025 tidak menandai aras tertentu.
+ * v5.14: bila tab 04 sudah memuat ayat per aras (u.aras25), pita 2025 juga membingkai aras yang dituangkan ayat ini;
+ * bila belum, pita 2025 memakai dasar pasal per urusan seperti sebelumnya.
  * Warna dan kode organ dibaca dari Cfg_Organ; nama aras dari Cfg_Aksi.
  */
 export default function PitaPeta({ daftar, ctx, tahun, onTelaah, onBukaUrusan }) {
@@ -35,14 +36,16 @@ export default function PitaPeta({ daftar, ctx, tahun, onTelaah, onBukaUrusan })
                     aria-expanded={terbuka} title={'Lihat alur ' + tahun}>
               <span className="pp-nama">{u.urusan}
                 <small>{u.id}
-                  {lama ? (dasar ? ' · dasar: ' + dasar : '')
+                  {lama ? (aras && aras.size
+                    ? ' · ayat ini: ' + ctx.aksi.filter((a) => aras.has(a.kode)).map((a) => String(a.nama || a.kode).toLowerCase()).join(', ')
+                    : (dasar ? ' · dasar: ' + dasar : ''))
                     : (berubah ? <b className="pp-berubah"> · alur berubah dari 2025</b> : (u.adaDiSumber === false ? ' · urusan baru' : ''))}
                 </small>
               </span>
-              <Mini ctx={ctx} isi={isi} tandai={lama ? null : aras} />
+              <Mini ctx={ctx} isi={isi} tandai={aras} />
             </button>
             {terbuka ? (lama
-              ? <Alur2025 u={u} ctx={ctx} langkah={langkah} onTelaah={onTelaah} onBukaUrusan={onBukaUrusan} />
+              ? <Alur2025 u={u} ctx={ctx} langkah={langkah} aras={aras} onTelaah={onTelaah} onBukaUrusan={onBukaUrusan} />
               : <Alur2026 u={u} ctx={ctx} aras={aras} baru={baru} hLama={hLama} onTelaah={onTelaah} onBukaUrusan={onBukaUrusan} />) : null}
           </div>
         );
@@ -121,22 +124,27 @@ function Kaki({ u, teks, onTelaah, onBukaUrusan }) {
   );
 }
 
-function Alur2025({ u, ctx, langkah, onTelaah, onBukaUrusan }) {
+function Alur2025({ u, ctx, langkah, aras, onTelaah, onBukaUrusan }) {
+  const per = u.aras25 || null;   // v5.14: ayat Statuta 2025 per aras
   return (
     <div className="pp-alur pp-lama">
       <KepalaAlur ctx={ctx} />
       <div className="pp-brs">
         {ctx.aksi.map((a) => {
           const l = langkah.filter((s) => s.aksi === a.kode);
+          const ini = !!(aras && aras.has(a.kode));
           return (
-            <span key={a.kode} className={'pp-c' + (l.length ? '' : ' pp-kosong')}>
+            <span key={a.kode} className={'pp-c' + (l.length ? '' : ' pp-kosong') + (ini ? ' pp-ini' : '')}>
               {l.length ? l.map((s) => <ChipOrgan key={s.kunci} kode={s.organ} ctx={ctx} teks={String(s.nomor)} />) : 'tidak diatur'}
+              {per && l.length ? <em>{ini ? 'ayat ini' : (per[a.kode] || '')}</em> : null}
             </span>
           );
         })}
       </div>
       <Kaki u={u} onTelaah={onTelaah} onBukaUrusan={onBukaUrusan}
-            teks={'Angka pada kotak = urutan langkah. Dasar pada Statuta 2025: ' + (u.pasal || '—')} />
+            teks={per
+              ? 'Angka pada kotak = urutan langkah · bingkai biru = dituangkan ayat ini. Dasar urusan pada Statuta 2025: ' + (u.pasal || '—')
+              : 'Angka pada kotak = urutan langkah. Dasar pada Statuta 2025: ' + (u.pasal || '—')} />
     </div>
   );
 }

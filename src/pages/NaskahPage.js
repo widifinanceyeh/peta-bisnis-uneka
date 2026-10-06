@@ -5,7 +5,7 @@ import TombolTautan from '../components/TombolTautan';
 import BarisJejak, { TeksRujukan } from '../components/BarisJejak';
 import PitaPeta, { PetaBaris } from '../components/PitaPeta';
 import PanelDasarHukum from '../components/PanelDasarHukum';
-import { petaAyatUrusan, petaAyatLama, redaksiPerAyat, ikatCatatan, penandaAyat, pasalBerpenanda, hitungTugas, monevPasal } from '../utils/telaah';
+import { petaAyatUrusan, petaAyatLama, petaArasLama, redaksiPerAyat, ikatCatatan, penandaAyat, pasalBerpenanda, hitungTugas, monevPasal } from '../utils/telaah';
 import { STORAGE_KEY } from '../config';
 import { hanyaLabel, jenisJejak, judulSama } from '../utils/rujukanHukum';
 
@@ -122,10 +122,21 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
   // Bunyi dasar hukum pasal ini diambil di latar belakang, sehingga sudah tersedia saat kutipan diklik.
   const adaData = !!data;
   useEffect(() => { if (adaData && pasal) muatDasarHukumPasal(pasal).catch(() => {}); }, [adaData, pasal]);
-  const ayatUrusan = useMemo(() => petaAyatUrusan(urusan, init && init.indeks26), [urusan, init]);
-  const ayatLama = useMemo(() => petaAyatLama(urusan, init && init.indeks25), [urusan, init]);
+  // v5.14: ayat Statuta 2025 per aras (tab 04) ikut melekat pada urusan sebagai u.aras25.
+  const urusanN = useMemo(() => {
+    const r = (init && init.rujukan25) || null;
+    if (!r || !urusan) return urusan;
+    return urusan.map((u) => (r[u.id] ? Object.assign({}, u, { aras25: r[u.id] }) : u));
+  }, [urusan, init]);
+  const ayatUrusan = useMemo(() => petaAyatUrusan(urusanN, init && init.indeks26), [urusanN, init]);
+  const arasLama = useMemo(() => petaArasLama(urusanN, init && init.indeks25), [urusanN, init]);
+  const ayatLama = useMemo(() => {
+    const o = petaAyatLama(urusanN, init && init.indeks25);
+    Object.keys(arasLama).forEach((id) => { Object.keys(arasLama[id]).forEach((u) => { (o[id] = o[id] || {})[u] = 'ayat'; }); });
+    return o;
+  }, [urusanN, init, arasLama]);
   const redaksiAyat = useMemo(() => redaksiPerAyat(data), [data]);
-  const indeksUrusan = useMemo(() => { const o = {}; (urusan || []).forEach((u) => { o[u.id] = u; }); return o; }, [urusan]);
+  const indeksUrusan = useMemo(() => { const o = {}; (urusanN || []).forEach((u) => { o[u.id] = u; }); return o; }, [urusanN]);
   const penanda = useMemo(() => penandaAyat(telaah), [telaah]);
   const monevPsl = useMemo(() => monevPasal(telaah), [telaah]);
   const pasalMonev = useMemo(() => {
@@ -470,11 +481,15 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
               let daftarLama = null;
               if (kerja && pita && l && ayatLama[l.id]) {
                 daftarLama = Object.keys(ayatLama[l.id]).filter((id) => {
-                  const kunci = id + '|P' + l.pasal;
+                  // Urusan berayat per aras tampil pada setiap ayatnya; selain itu sekali per pasal.
+                  const kunci = arasLama[l.id] && arasLama[l.id][id] ? id + '|' + l.id : id + '|P' + l.pasal;
                   if (sudahLama.has(kunci)) return false;
                   sudahLama.add(kunci);
                   return true;
-                }).map((id) => ({ u: indeksUrusan[id], lingkup: ayatLama[l.id][id], dasar: dasarLama(init.indeks25, ayatLama, l.pasal, id) }))
+                }).map((id) => {
+                  const aras = arasLama[l.id] ? arasLama[l.id][id] || null : null;
+                  return { u: indeksUrusan[id], lingkup: ayatLama[l.id][id], aras, dasar: aras ? '' : dasarLama(init.indeks25, ayatLama, l.pasal, id) };
+                })
                   .filter((x) => x.u);
               }
               return (
