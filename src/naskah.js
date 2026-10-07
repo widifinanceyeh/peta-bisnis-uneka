@@ -293,7 +293,7 @@ export function muatDasarHukumPasal(pasal) {
 
 function muatDasarHukumPasal_(pasal) {
   const n = Number(pasal);
-  if (!n) return Promise.resolve(null);
+  if (!n && n !== 0) return Promise.resolve(null);
   const kunci = 'dhp:' + n;
   if (janji[kunci]) return janji[kunci];
   if (keadaan.dhPasal && keadaan.dhPasal[n]) return Promise.resolve(true);

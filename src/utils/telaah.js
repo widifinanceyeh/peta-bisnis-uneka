@@ -201,6 +201,7 @@ export function monevPasal(telaah) {
 /** Label nomor ayat untuk tampilan: "Ps 68 (13)" / "Ps 68 angka 5". */
 export function labelAyat(p, nomor, lama) {
   const n = String(nomor || '').trim();
+  if (Number(p) === 0) return 'Pembukaan' + (n ? ' ' + n : '');
   if (!n) return 'Ps ' + p + ' pembuka';
   if (lama) return /^\(/.test(n) ? 'Ps ' + p + ' ' + n.replace(/\.$/, '') : 'Ps ' + p + ' angka ' + n.replace(/[().]/g, '');
   return 'Ps ' + p + ' (' + n + ')';

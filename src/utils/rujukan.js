@@ -81,14 +81,26 @@ export function tautkan(r, indeks26) {
   return { ada: hilang.length === 0, id, hilang };
 }
 
+/** v5.16: nama tampilan pasal; Pasal 0 adalah Pembukaan. */
+export function namaPasal(p) {
+  return Number(p) === 0 ? 'Pembukaan' : 'Pasal ' + p;
+}
+
+/** v5.16: nomor pasal terisi (0 = Pembukaan juga terisi). */
+export function adaPasal(p) {
+  return p !== null && p !== undefined && p !== '' && !Number.isNaN(Number(p));
+}
+
 /** Label ayat Statuta 2025 dari nomor cetak: "(1)" -> "ayat (1)", "1." -> "angka 1", "" -> "kalimat pembuka". */
 export function labelAyatLama(pasal, nomor) {
   const n = String(nomor || '').trim();
+  if (Number(pasal) === 0) return 'Pembukaan' + (n ? ' ' + n : '');
   if (!n) return 'Ps ' + pasal + ' kalimat pembuka';
   if (/^\(\d+\)/.test(n)) return 'Ps ' + pasal + ' ayat ' + n.replace(/\.$/, '');
   return 'Ps ' + pasal + ' angka ' + n.replace(/[().]/g, '');
 }
 
 export function labelAyatBaru(pasal, nomor) {
+  if (Number(pasal) === 0) return 'Pembukaan' + (nomor ? ' ' + nomor : '');
   return nomor ? 'Ps ' + pasal + ' (' + nomor + ')' : 'Ps ' + pasal + ' kalimat pembuka';
 }

@@ -9,6 +9,7 @@ import { petaAyatUrusan, petaArasLama, redaksiPerAyat, ikatCatatan, penandaAyat,
 import { STORAGE_KEY } from '../config';
 import { hanyaLabel, jenisJejak, judulSama } from '../utils/rujukanHukum';
 import { ambilSasaran, langganSasaran, lepasSasaran } from '../utils/bukaAyat';
+import { namaPasal, adaPasal } from '../utils/rujukan';
 
 /** v5.15: pita dengan urusan sebanyak ini atau lebih tampil tertutup lebih dulu. */
 const BATAS_RINGKAS = 6;
@@ -99,7 +100,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
   const warna = cfg.warna || {};
 
   useEffect(() => {
-    if (!init || !daftar.length || pasal) return;
+    if (!init || !daftar.length || adaPasal(pasal)) return;
     const terakhir = Number(bacaLokal(STORAGE_KEY.NASKAH_PASAL, '0'));
     const ada = daftar.some((d) => d.pasal === terakhir);
     onPilihPasal(ada ? terakhir : daftar[0].pasal, true);
@@ -122,10 +123,10 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
     }, 0);
   }, [info && info.pasal]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const data = pasal ? n.pasal[pasal] : null;
+  const data = adaPasal(pasal) ? n.pasal[pasal] : null;
   // Bunyi dasar hukum pasal ini diambil di latar belakang, sehingga sudah tersedia saat kutipan diklik.
   const adaData = !!data;
-  useEffect(() => { if (adaData && pasal) muatDasarHukumPasal(pasal).catch(() => {}); }, [adaData, pasal]);
+  useEffect(() => { if (adaData && adaPasal(pasal)) muatDasarHukumPasal(pasal).catch(() => {}); }, [adaData, pasal]);
   // v5.14: ayat Statuta 2025 per aras (tab 04) ikut melekat pada urusan sebagai u.aras25.
   const urusanN = useMemo(() => {
     const r = (init && init.rujukan25) || null;
@@ -163,7 +164,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
       let ubah = !l;
       // Pasal yang baru pertama kali terbaca dijadikan patokan (tidak ditandai); pasal yang sedang dibuka dianggap sudah dilihat.
       Object.keys(sidik).forEach((k) => { if (!(k in o)) { o[k] = sidik[k]; ubah = true; } });
-      if (pasal && sidik[pasal] && o[pasal] !== sidik[pasal]) { o[pasal] = sidik[pasal]; ubah = true; }
+      if (adaPasal(pasal) && sidik[pasal] && o[pasal] !== sidik[pasal]) { o[pasal] = sidik[pasal]; ubah = true; }
       return ubah ? o : l;
     });
   }, [sidik, pasal]);
@@ -302,7 +303,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
   const usulan = data && cfg.label ? data.jejak.filter((j) => !j.dikonfirmasi && j.status === cfg.label.HAPUS).length : 0;
   const tugas = {};
   if (data) data.ayat26.forEach((a) => { const t = hitungTugas(a.sorot, warna); Object.keys(t).forEach((k) => { tugas[k] = (tugas[k] || 0) + t[k]; }); });
-  const monevBebas = (pasal && monevPsl[pasal]) || [];
+  const monevBebas = (adaPasal(pasal) && monevPsl[pasal]) || [];
   const nMonev = (data ? data.ayat26.reduce((s, a) => s + ((penanda[a.id] && penanda[a.id].monev.length) || 0), 0) : 0) + monevBebas.length;
   const nMonevAda = data ? data.ayat26.reduce((s, a) => s + ((penanda[a.id] && penanda[a.id].monevAda.length) || 0), 0) : 0;
   const ringkas = digulir && !tahan;
@@ -335,7 +336,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
             {!hasilCari ? <div className="redup kecil nk-kosong">Mencari…</div> : null}
             {(hasilCari || []).map((h) => (
               <button type="button" key={h.id} className={'nk-item nk-hasil' + (h.pasal === pasal ? ' aktif' : '')} onClick={() => onPilihPasal(h.pasal)}>
-                <b>Ps {h.pasal}{h.nomor ? ' (' + h.nomor + ')' : ''}</b>
+                <b>{h.pasal === 0 ? 'Pembukaan' : 'Ps ' + h.pasal}{h.nomor ? ' (' + h.nomor + ')' : ''}</b>
                 <span className="nk-hasil-teks">{h.i > 40 ? '…' + h.teks.slice(h.i - 40, h.i) : h.teks.slice(0, h.i)}<mark>{h.teks.slice(h.i, h.i + qIsi.length)}</mark>{h.teks.slice(h.i + qIsi.length, h.i + qIsi.length + 60)}…</span>
               </button>
             ))}
@@ -355,7 +356,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
                     {kerja && alasanPasal(d, pasalTemuan).length
                       ? <i className="nk-perlu" title={'Perlu tindakan: ' + alasanPasal(d, pasalTemuan).join(', ')} aria-label="perlu tindakan">●</i>
                       : <span />}
-                    <span className="nk-item-no">Pasal {d.pasal}{berubah.has(d.pasal) ? <i className="nk-berubah" title="Berubah sejak terakhir dibuka" aria-label="berubah sejak terakhir dibuka">●</i> : null}
+                    <span className="nk-item-no">{namaPasal(d.pasal)}{berubah.has(d.pasal) ? <i className="nk-berubah" title="Berubah sejak terakhir dibuka" aria-label="berubah sejak terakhir dibuka">●</i> : null}
                       {jenisAktif !== 'semua' && d.jenis ? <span className="nk-jml" title={d.jenis[jenisAktif] + ' ayat ' + labelJenis(jenisAktif).toLowerCase()}>{d.jenis[jenisAktif]}</span> : null}</span>
                     <span className="nk-item-judul">{d.judul}</span>
                     {pasalMonev.has(d.pasal) ? <span className="tanda-m" title="Terkunci Monev">M</span> : <span />}
@@ -376,9 +377,9 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
 
       <div className="nk-gulir" ref={gulir} onScroll={onGulir}>
       <main className={'nk-utama' + (kerja ? '' : ' nk-rapat')}>
-        <select className="inp nk-pilih-sempit" value={pasal || ''} onChange={(e) => onPilihPasal(Number(e.target.value))}
+        <select className="inp nk-pilih-sempit" value={adaPasal(pasal) ? pasal : ''} onChange={(e) => onPilihPasal(Number(e.target.value))}
                 aria-label="Pilih pasal">
-          {daftar.map((d) => <option key={d.pasal} value={d.pasal}>{berubah.has(d.pasal) ? '● ' : ''}Pasal {d.pasal} · {d.judul}</option>)}
+          {daftar.map((d) => <option key={d.pasal} value={d.pasal}>{berubah.has(d.pasal) ? '● ' : ''}{d.pasal === 0 ? 'Pembukaan' : 'Pasal ' + d.pasal + ' · ' + d.judul}</option>)}
         </select>
 
         <div ref={kepalaRef} className={'nk-kepala5' + (ciut ? ' ciut' : '') + (ringkas ? ' ringkas' : '')}>
@@ -389,15 +390,15 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
             ) : null}
           </div>
           <div className="nk-judul-baris">
-            <h2 className="nk-judul">Pasal {pasal}{info && info.judul ? ' · ' + info.judul : ''}</h2>
+            <h2 className="nk-judul">{pasal === 0 ? 'Pembukaan' : 'Pasal ' + pasal + (info && info.judul ? ' · ' + info.judul : '')}</h2>
             {judulLamaBeda && !ringkas ? (
-              <span className="nk-lama" title="Judul pasal pada Statuta 2025">Statuta 2025: Pasal {asal.pasal}
+              <span className="nk-lama" title="Judul pasal pada Statuta 2025">Statuta 2025: {namaPasal(asal.pasal)}
                 {asal.judul ? <> · <s>{asal.judul}</s></> : ' (tanpa judul)'}</span>
             ) : null}
             {nMonev ? <span className="lencana lencana-merah">Monev · {nMonev} butir</span> : null}
             {nMonevAda ? <span className="lencana lencana-abu" title="Butir Monev yang menurut Berita Acara sudah ada">Monev sudah ada · {nMonevAda}</span> : null}
             {kerja && perlu.length ? <span className="lencana lencana-perlu">Perlu tindakan: {perlu.join(' · ')}</span> : null}
-            {pasal ? <TombolTautan alamat={'#naskah-' + pasal} /> : null}
+            {adaPasal(pasal) ? <TombolTautan alamat={'#naskah-' + pasal} /> : null}
             <div className="nk-pindah">
               <button type="button" className="tbl tbl-ringan" onClick={() => pindah(-1)} disabled={posisi <= 0} aria-label="Pasal sebelumnya">‹</button>
               <button type="button" className="tbl tbl-ringan" onClick={() => pindah(1)} disabled={posisi >= daftar.length - 1} aria-label="Pasal berikutnya">›</button>
@@ -475,7 +476,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
         </div>
 
         {galatBab ? <div className="galat-kotak">{galatBab}</div> : null}
-        {!data && !galatBab ? <div className="nk-muat">Membaca Pasal {pasal}…</div> : null}
+        {!data && !galatBab ? <div className="nk-muat">Membaca {namaPasal(pasal)}…</div> : null}
 
         {data ? (
           <div className={'jj-tabel' + (kerja ? ' jj-kerja' : ' jj-rapat')}>

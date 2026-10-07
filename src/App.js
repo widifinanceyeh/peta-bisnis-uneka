@@ -17,6 +17,7 @@ import { STORAGE_KEY } from './config';
 import { langganNaskah, ambilNaskah, muatTelaah, muatInitNaskah, segarkanNaskah, mulaiPaket } from './naskah';
 import { susunKerja } from './utils/telaah';
 import { navigasi } from './navigasi';
+import { adaPasal } from './utils/rujukan';
 
 // Modul Naskah dan Telaah dimuat terpisah: tidak menambah berat pembukaan peta.
 const NaskahPage = lazy(() => import('./pages/NaskahPage'));
@@ -178,7 +179,7 @@ export default function App() {
       const terapkan = () => {
         setIdTerpilih(st.id || null);
         setHalaman(st.halaman || 'peta');
-        if (st.pasal) setPasalNaskah(st.pasal);
+        if (adaPasal(st.pasal)) setPasalNaskah(st.pasal);
         if (st.telaah) setSelTelaah(st.telaah);
         if (st.turunan !== undefined) setSelTurunan(st.turunan || '');
         if (st.kerja !== undefined) setSelKerja(st.kerja || '');
@@ -242,9 +243,9 @@ export default function App() {
     sesudahSimpan(() => {
       setIdTerpilih(null);
       setHalaman('naskah');
-      if (pasal) setPasalNaskah(Number(pasal));
-      const p = pasal || null;
-      dorong({ id: null, halaman: 'naskah', pasal: p }, p ? '#naskah-' + p : '#naskah');
+      const p = adaPasal(pasal) ? Number(pasal) : null;      // v5.16: Pasal 0 = Pembukaan
+      if (p !== null) setPasalNaskah(p);
+      dorong({ id: null, halaman: 'naskah', pasal: p }, p !== null ? '#naskah-' + p : '#naskah');
     });
   }, [sesudahSimpan, dorong]);
 
@@ -273,7 +274,7 @@ export default function App() {
   /** Dari Daftar kerja: membuka halaman Naskah dengan saringan pasal tertentu. */
   const bukaSaringNaskah = useCallback((saring, pasal) => {
     setSaringNaskah(saring || 'semua');
-    bukaNaskah(pasal || pasalNaskah);
+    bukaNaskah(adaPasal(pasal) ? pasal : pasalNaskah);
   }, [bukaNaskah, pasalNaskah]);
 
   const bukaKerja = useCallback(() => {

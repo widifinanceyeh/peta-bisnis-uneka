@@ -3,7 +3,7 @@ import TeksBeda from './TeksBeda';
 import KotakRedaksi from './KotakRedaksi';
 import LencanaMonev from './LencanaMonev';
 import { simpanJejak } from '../naskah';
-import { labelAyatLama } from '../utils/rujukan';
+import { labelAyatLama, namaPasal, adaPasal } from '../utils/rujukan';
 import { potongSorotan } from '../utils/telaah';
 import { pecahRujukan } from '../utils/rujukanHukum';
 import { STORAGE_KEY } from '../config';
@@ -15,6 +15,8 @@ import { bacaDraf, tulisDraf, hapusDraf } from '../hooks/useDraf';
  * di bawah bunyi ayat 2026 tampil usulan redaksi, penanda Monev, rujukan silang patah, dugaan ayat mirip,
  * sorotan tugas YEH/UNEKA, dan pita peta 2026.
  * Panel sunting jejak dan penulisan usulan redaksi hanya pada Mode kerja.
+ * v5.16: ayat yang dipindah ke pasal lain tampil sebagai kartu bayangan ungu di pasal asal (bukan lagi bagian
+ * pasal itu); di pasal tujuan ayat tampil biasa dengan penanda hijau asalnya. Penentunya letak pasangan, bukan status.
  */
 export default function BarisJejak({
   baris, pasal, cfg, init, sorot, terbuka, onBuka, onTutup, onPilihPasal, onGalat,
@@ -26,15 +28,18 @@ export default function BarisJejak({
   const bisaBeda = sorot && kiri && kanan && jejak && jejak.status !== (cfg.label || {}).TETAP;
   const pn = (kanan && penanda) || null;
   const monev = pn ? pn.monev : [];
+  const keluar = !!(kanan && kanan.pasal !== pasal);           // ayat 2026 kini berada di pasal lain
+  const masuk = !!(kiri && kanan && kiri.pasal !== pasal && kanan.pasal === pasal);   // ayat 2026 berasal dari pasal lain
 
   return (
-    <div className={'jj-baris' + (terbuka ? ' jj-terbuka' : '') + (!jejak ? ' jj-tanpa' : '') + (monev.length && pertama ? ' jj-monev' : '')}
+    <div className={'jj-baris' + (terbuka ? ' jj-terbuka' : '') + (!jejak ? ' jj-tanpa' : '') + (monev.length && pertama ? ' jj-monev' : '') +
+      (keluar ? ' jj-keluar' : '') + (masuk ? ' jj-masuk' : '')}
          data-k={kiri ? kiri.id : undefined} data-n={kanan ? kanan.id : undefined}>
       <div className="jj-sel jj-kiri">
         {kiri ? (
           <>
             {kiri.pasal !== pasal ? (
-              <button type="button" className="jj-asal" onClick={() => onPilihPasal(kiri.pasal)}>dari Pasal {kiri.pasal}</button>
+              <button type="button" className={'jj-asal' + (masuk ? ' jj-asal-masuk' : '')} onClick={() => onPilihPasal(kiri.pasal)}>dari {namaPasal(kiri.pasal)}</button>
             ) : null}
             <span className="jj-no">{nomorLama(kiri.nomor)}</span>
             {bisaBeda ? <TeksBeda kiri={kiri.teks} kanan={kanan.teks} sisi="kiri" /> : <span className="teks-pre">{kiri.teks}</span>}
@@ -58,12 +63,20 @@ export default function BarisJejak({
       </div>
 
       <div className="jj-sel jj-kanan">
-        {kanan ? (pertama ? (
+        {kanan && pertama && keluar ? (
+          <div className="jj-bayang">
+            <div className="jj-bayang-pita">
+              <span>↪ Bukan lagi bagian {namaPasal(pasal)} — kini {namaPasal(kanan.pasal)}{letakNo(kanan)}</span>
+              <button type="button" className="jj-bayang-buka" onClick={() => onPilihPasal(kanan.pasal)}>Buka {namaPasal(kanan.pasal)} →</button>
+            </div>
+            <div className="jj-bayang-isi">
+              {bisaBeda ? <TeksBeda kiri={kiri.teks} kanan={kanan.teks} sisi="kanan" />
+                : <TeksSorot teks={kanan.teks} sorot={kanan.sorot} warna={warna} />}
+            </div>
+          </div>
+        ) : kanan ? (pertama ? (
           <>
-            {kanan.pasal !== pasal ? (
-              <button type="button" className="jj-asal" onClick={() => onPilihPasal(kanan.pasal)}>ke Pasal {kanan.pasal}</button>
-            ) : null}
-            <span className="jj-no">{kanan.nomor ? '(' + kanan.nomor + ')' : ''}</span>
+            <span className="jj-no">{kanan.pasal === 0 ? kanan.nomor : (kanan.nomor ? '(' + kanan.nomor + ')' : '')}</span>
             {pn ? <LencanaMonev daftar={pn.monev.concat(pn.monevAda || []).sort((a, b) => Number(a.butir) - Number(b.butir))} /> : null}
             {bisaBeda ? <TeksBeda kiri={kiri.teks} kanan={kanan.teks} sisi="kanan" />
               : <TeksSorot teks={kanan.teks} sorot={kanan.sorot} warna={warna} />}
@@ -130,7 +143,15 @@ export default function BarisJejak({
 
 function labelId(id) {
   const m = /^[A-Z](\d{3})\.(\d+)$/.exec(String(id || ''));
-  return m ? 'Pasal ' + Number(m[1]) + ', ayat ke-' + Number(m[2]) : id;
+  if (!m) return id;
+  return Number(m[1]) === 0 ? 'Pembukaan, alinea ke-' + Number(m[2]) : 'Pasal ' + Number(m[1]) + ', ayat ke-' + Number(m[2]);
+}
+
+/** v5.16: letak ayat 2026 pada pita kartu bayangan: " ayat (1)", " alinea 2", " kalimat pembuka". */
+function letakNo(a) {
+  const n = String(a.nomor || '').trim();
+  if (a.pasal === 0) return n ? ' ' + n : '';
+  return n ? ' ayat (' + n + ')' : ' kalimat pembuka';
 }
 
 /** Bunyi ayat dengan sorotan tugas YEH/UNEKA sesuai warna di Google Doc. */
@@ -281,17 +302,18 @@ function salin(j) {
 /** Pemilih ayat: nomor pasal lalu ayatnya. Nilai lama tetap tampil walau di luar daftar. */
 function PilihAyat({ judul, jenis, nilai, pasalAsal, indeks, onPilih }) {
   const pasalNilai = pasalDariIdLokal(nilai);
-  const [pasal, setPasal] = useState(pasalNilai || pasalAsal);
-  useEffect(() => { setPasal(pasalDariIdLokal(nilai) || pasalAsal); }, [nilai, pasalAsal]);
+  const [pasal, setPasal] = useState(adaPasal(pasalNilai) ? pasalNilai : pasalAsal);
+  useEffect(() => { const p = pasalDariIdLokal(nilai); setPasal(adaPasal(p) ? p : pasalAsal); }, [nilai, pasalAsal]);
   const daftar = (indeks && indeks[pasal]) || [];
-  const label = (x) => (jenis === 'lama' ? labelAyatLama(pasal, x[1]).replace(/^Ps \d+ /, '') : (x[1] ? 'ayat (' + x[1] + ')' : 'kalimat pembuka'));
+  const label = (x) => (jenis === 'lama' ? labelAyatLama(pasal, x[1]).replace(/^Ps \d+ /, '')
+    : (pasal === 0 ? x[1] : (x[1] ? 'ayat (' + x[1] + ')' : 'kalimat pembuka')));
   const adaNilai = !nilai || daftar.some((x) => x[0] === nilai);
   return (
     <div className="jj-medan jj-pilih">
       <span>{judul}</span>
       <div className="jj-pilih-isi">
-        <input className="inp jj-pasal" type="number" min="1" value={pasal || ''} aria-label="Nomor pasal"
-               onChange={(e) => setPasal(Number(e.target.value) || '')} />
+        <input className="inp jj-pasal" type="number" min="0" value={adaPasal(pasal) ? pasal : ''} aria-label="Nomor pasal (0 = Pembukaan)"
+               title="0 = Pembukaan" onChange={(e) => setPasal(e.target.value === '' ? '' : Number(e.target.value))} />
         <select className="inp" value={nilai || ''} onChange={(e) => onPilih(e.target.value)}>
           <option value="">— tidak ada —</option>
           {daftar.map((x) => <option key={x[0]} value={x[0]}>{label(x)}</option>)}
@@ -304,7 +326,7 @@ function PilihAyat({ judul, jenis, nilai, pasalAsal, indeks, onPilih }) {
 
 function pasalDariIdLokal(id) {
   const m = /^[A-Z](\d{3})\.\d+$/.exec(String(id || ''));
-  return m ? Number(m[1]) : 0;
+  return m ? Number(m[1]) : null;
 }
 
 /**
