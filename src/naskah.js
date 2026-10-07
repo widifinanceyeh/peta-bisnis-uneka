@@ -639,6 +639,29 @@ async function simpanHasilRapat_(muatan) {
   return hasil;
 }
 
+/* ------------------------------------------------------------ catatan rapat (v5.17) */
+
+function pasangRapat(nPasal, c) {
+  const p = keadaan.pasal[nPasal];
+  if (p) {
+    const daftar = (p.rapat || []).filter((x) => x.id !== c.id);
+    if (c.status !== 'DIBATALKAN') daftar.push(c);
+    set({ pasal: Object.assign({}, keadaan.pasal, { [nPasal]: Object.assign({}, p, { rapat: daftar }) }) });
+    if (keadaan.init) {
+      const jml = daftar.filter((x) => x.status === 'TERBUKA').length;
+      const d = keadaan.init.daftar.map((x) => (x.pasal === nPasal ? Object.assign({}, x, { rapat: jml }) : x));
+      set({ init: Object.assign({}, keadaan.init, { daftar: d }) });
+    }
+  }
+}
+
+/** Menulis, mengubah, atau mengganti status catatan rapat satu ayat. Layar berubah sesudah backend menerima. */
+async function simpanCatatanRapat_(muatan) {
+  const hasil = await api.saveCatatanRapat(muatan);
+  pasangRapat(pasalDariId(hasil.id26 || muatan.id26), hasil);
+  return hasil;
+}
+
 /* ------------------------------------------------------------ v5.6: pelacak simpan */
 
 /**
@@ -664,3 +687,4 @@ export const simpanPutusanPasal = lacak(simpanPutusanPasal_);
 export const simpanPutusanLuar = lacak(simpanPutusanLuar_);
 export const konfirmasiHapusLuar = lacak(konfirmasiHapusLuar_);
 export const simpanHasilRapat = lacak(simpanHasilRapat_);
+export const simpanCatatanRapat = lacak(simpanCatatanRapat_);

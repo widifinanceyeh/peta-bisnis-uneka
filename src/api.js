@@ -236,5 +236,10 @@ export const api = {
   savePutusan: (payload) => simpanDenganCadanganAksi(Object.assign({ action: 'savePutusan' }, payload), 'savePutusan'),
   // Usulan redaksi (v5.1, lihat Redaksi.gs). Terapkan aman diulang: backend mengenali usulan yang sudah diterapkan.
   saveRedaksi: (payload) => simpanDenganCadanganAksi(Object.assign({ action: 'saveRedaksi' }, payload), 'saveRedaksi'),
-  terapkanRedaksi: (payload) => simpanDenganCadanganAksi(Object.assign({ action: 'terapkanRedaksi' }, payload), 'terapkanRedaksi')
+  terapkanRedaksi: (payload) => simpanDenganCadanganAksi(Object.assign({ action: 'terapkanRedaksi' }, payload), 'terapkanRedaksi'),
+  // v5.17 (CatatanRapat.gs): catatan rapat per ayat, rekap rapat per tanggal, versi rapat.
+  saveCatatanRapat: (payload) => simpanDenganCadanganAksi(Object.assign({ action: 'saveCatatanRapat' }, payload), 'saveCatatanRapat'),
+  rekapRapat: (tanggal) => apiGet('rekapRapat', { tanggal: tanggal || '' }, { batas: 60000 }),
+  bekukanVersi: (payload) => simpanDenganCadanganAksi(Object.assign({ action: 'bekukanVersi' }, payload), 'bekukanVersi'),
+  bandingVersi: (label) => apiGet('bandingVersi', { label: label || '' }, { batas: 60000 })
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import TeksBeda from './TeksBeda';
 import { simpanRedaksi, batalRedaksi, terapkanRedaksi } from '../naskah';
 import { cekStrukturRedaksi } from '../utils/telaah';
@@ -13,7 +13,7 @@ import useDraf, { bacaDraf } from '../hooks/useDraf';
  * membatalkan, dan "Terapkan ke Doc". Penerapan hanya untuk penggantian kata di dalam baris yang sama
  * dan tidak untuk ayat yang terkunci catatan asesor Monev; backend memeriksa ulang seluruh syarat itu.
  */
-export default function KotakRedaksi({ ayat, redaksi, kerja, monev, onGalat }) {
+export default function KotakRedaksi({ ayat, redaksi, kerja, monev, onGalat, bukaSunting }) {
   const aktif = redaksi ? redaksi.aktif : null;
   const diterapkan = redaksi ? redaksi.diterapkan : [];
   // v5.6: usulan yang belum tersimpan langsung dibuka lagi.
@@ -22,6 +22,9 @@ export default function KotakRedaksi({ ayat, redaksi, kerja, monev, onGalat }) {
   const [sibuk, setSibuk] = useState('');
   const [pesan, setPesan] = useState('');
   const terkunci = monev && monev.length > 0;
+  // v5.17: editor dibuka dari menu "⋯" pada ayat (bukaSunting = nomor permintaan), bukan dari tautan di bawah ayat.
+  const awalBuka = useRef(bukaSunting);
+  useEffect(() => { if (bukaSunting && bukaSunting !== awalBuka.current) setSunting(true); }, [bukaSunting]);
 
   const jalankan = async (jenis, fn) => {
     setSibuk(jenis); setPesan('');
@@ -72,12 +75,9 @@ export default function KotakRedaksi({ ayat, redaksi, kerja, monev, onGalat }) {
           ) : null}
         </div>
       ) : null}
-      {kerja && !aktif ? (
+      {kerja && !aktif && diterapkan.length ? (
         <div className="rd-aksi">
-          <button type="button" className="tautan" onClick={() => setSunting(true)}>✎ Usulkan redaksi</button>
-          {diterapkan.length ? (
-            <span className="kecil redup"> · redaksi terakhir diterapkan dari web {diterapkan[diterapkan.length - 1].diterapkan}: {diterapkan[diterapkan.length - 1].alasan}</span>
-          ) : null}
+          <span className="kecil redup">Redaksi terakhir diterapkan dari web {diterapkan[diterapkan.length - 1].diterapkan}: {diterapkan[diterapkan.length - 1].alasan}</span>
         </div>
       ) : null}
     </>

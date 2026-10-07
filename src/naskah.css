@@ -794,3 +794,96 @@ button.lencana-m-ada:hover { background: #e3e5ea; border-color: #9aa0ad; }
   line-height: 16px; text-align: center; background: var(--navy); color: var(--putih); vertical-align: 1px; }
 .nk-kepala5.ringkas .nk-jenis { display: none; }
 @media print { .nk-jenis { display: none !important; } .rujukan-dh { text-decoration: none; color: inherit; } }
+
+/* ================================================================ v5.17 ALAT RAPAT
+   Tindakan per ayat dan alat rapat disimpan di menu "⋯" agar layar tetap bersih. */
+.mt { position: relative; display: inline-flex; }
+.mt-tombol {
+  font-family: var(--font); font-size: 15px; line-height: 1; letter-spacing: 1px; color: var(--navy);
+  background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 3px 7px; cursor: pointer;
+}
+.mt-tombol:hover, .mt-tombol:focus-visible, .mt-tombol.aktif { background: var(--garis-2); border-color: var(--garis); }
+.mt-daftar {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 40; min-width: 230px; display: flex; flex-direction: column;
+  background: var(--putih); border: 1px solid var(--garis); border-radius: 10px; box-shadow: 0 10px 28px rgba(20, 30, 70, .14); padding: 4px;
+}
+.mt-butir {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; font-family: var(--font);
+  font-size: 13px; color: var(--teks); background: transparent; border: 0; border-radius: 7px; padding: 7px 10px; cursor: pointer;
+}
+.mt-butir small { font-size: 11px; color: var(--teks-redup); }
+.mt-butir:hover, .mt-butir:focus-visible { background: var(--garis-2); outline: none; }
+
+.jj-kanan { position: relative; }
+.jj-kanan:has(> .jj-menu) { padding-right: 34px; }
+.jj-menu { position: absolute; top: 6px; right: 6px; }
+.jj-menu .mt-tombol { opacity: 0; transition: opacity .12s; }
+.jj-baris:hover .jj-menu .mt-tombol, .jj-menu .mt-tombol:focus-visible, .jj-menu .mt-tombol.aktif { opacity: 1; }
+@media (hover: none) { .jj-menu .mt-tombol { opacity: .55; } }
+
+.kotak-rapat { border: 1px solid #ecd28f; background: #fffaeb; color: var(--teks); }
+.kotak-rapat > b { color: #8a5a00; display: block; margin-bottom: 2px; }
+.cr-butir { padding: 4px 0; }
+.cr-butir + .cr-butir { border-top: 1px dashed #ecd28f; }
+.cr-teks { white-space: pre-wrap; }
+.cr-selesai .cr-teks { color: var(--teks-redup); }
+.cr-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 2px; font-size: 11px; color: var(--teks-redup); }
+.cr-st { font-weight: 700; border-radius: 100px; padding: 0 7px; }
+.cr-st-buka { color: #8a5a00; background: #fdeec4; }
+.cr-st-selesai { color: #065f46; background: #d1fae5; }
+.cr-aksi { display: inline-flex; gap: 10px; margin-left: auto; opacity: 0; transition: opacity .12s; }
+.cr-butir:hover .cr-aksi, .cr-aksi:focus-within { opacity: 1; }
+@media (hover: none) { .cr-aksi { opacity: .8; } }
+.cr-aksi .tautan { font-size: 11.5px; }
+.cr-hapus { color: #b42318 !important; }
+.cr-editor { margin-top: 6px; }
+.cr-editor textarea { width: 100%; box-sizing: border-box; font-size: 13px; }
+.cr-kaki { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.cr-kaki .kecil { margin-right: auto; }
+
+.jj-sejak {
+  display: inline-block; margin: 0 6px 4px 0; font-size: 10.5px; font-weight: 600; border-radius: 100px; padding: 1px 8px;
+  color: #0f5e7a; background: #dff3fa;
+}
+.jj-sejak-baru { color: #1e3a8a; background: #e0e7ff; }
+
+.nk-alat-kanan { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.nk-alat-kanan .nk-cetak { margin-left: 0; }
+.nk-alat-rapat { border-top: 0 !important; padding-top: 0 !important; justify-content: flex-end; }
+.nk-banding { display: inline-flex; align-items: center; gap: 6px; }
+.nk-banding-x { border: 0; background: transparent; color: inherit; font-size: 14px; line-height: 1; cursor: pointer; padding: 0 2px; }
+.nk-pesan-alat { flex-basis: 100%; font-size: 12px; color: var(--navy); }
+.nk-delta, .nk-rapat { font-style: normal; font-size: 10px; margin-left: 4px; }
+.nk-delta { color: #0f5e7a; }
+.nk-rapat { color: #8a5a00; }
+
+.rk-alat { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.rk-pilih { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.rk-judul { font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+.rk-pasal { margin-bottom: 12px; }
+.rk-pasal-judul { font-weight: 700; font-size: 13px; color: var(--navy); margin-bottom: 4px; }
+.rk-tabel { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.rk-tabel td { border-top: 1px solid var(--garis-2); padding: 6px 8px; vertical-align: top; }
+.rk-letak { width: 150px; color: var(--teks-redup); }
+.rk-jenis { width: 140px; }
+.rk-st { width: 110px; }
+.rk-tag { font-size: 11px; font-weight: 600; border-radius: 100px; padding: 1px 8px; white-space: nowrap; }
+.rk-catatan { color: #8a5a00; background: #fdeec4; }
+.rk-redaksi { color: var(--navy); background: #e8edfa; }
+.rk-jejak { color: #065f46; background: #d1fae5; }
+.bv-daftar { display: flex; flex-direction: column; gap: 6px; }
+.bv-butir {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; font-family: var(--font);
+  border: 1px solid var(--garis); border-radius: 8px; background: var(--putih); padding: 8px 12px; cursor: pointer;
+}
+.bv-butir:hover, .bv-butir.aktif { border-color: var(--navy); background: var(--garis-2); }
+
+@media print {
+  .jj-menu, .cr-aksi, .cr-editor, .kotak-rapat, .jj-sejak, .nk-delta, .nk-rapat { display: none !important; }
+  body.cetak-rekap * { visibility: hidden; }
+  body.cetak-rekap .modal-latar { display: block !important; position: static; background: none; }
+  body.cetak-rekap .modal, body.cetak-rekap .modal-isi { max-height: none !important; overflow: visible !important; box-shadow: none; border: 0; }
+  body.cetak-rekap .rekap-cetak, body.cetak-rekap .rekap-cetak * { visibility: visible; }
+  body.cetak-rekap .rekap-cetak { position: absolute; left: 0; top: 0; width: 100%; }
+  body.cetak-rekap .rekap-cetak .tautan { color: inherit; text-decoration: none; }
+}

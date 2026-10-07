@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import TeksBeda from './TeksBeda';
 import KotakRedaksi from './KotakRedaksi';
+import KotakRapat from './KotakRapat';
+import MenuTitik from './MenuTitik';
 import LencanaMonev from './LencanaMonev';
 import { simpanJejak } from '../naskah';
 import { labelAyatLama, namaPasal, adaPasal } from '../utils/rujukan';
@@ -20,7 +22,7 @@ import { bacaDraf, tulisDraf, hapusDraf } from '../hooks/useDraf';
  */
 export default function BarisJejak({
   baris, pasal, cfg, init, sorot, terbuka, onBuka, onTutup, onPilihPasal, onGalat,
-  pertama, dasar, penanda, pita, pitaKiri, warna, bisaSunting, redaksi, onDh
+  pertama, dasar, penanda, pita, pitaKiri, warna, bisaSunting, redaksi, onDh, rapat, sejak
 }) {
   const { jejak, kiri, kanan } = baris;
   const warnaSt = warnaStatus(cfg, jejak ? jejak.status : '');
@@ -30,6 +32,10 @@ export default function BarisJejak({
   const monev = pn ? pn.monev : [];
   const keluar = !!(kanan && kanan.pasal !== pasal);           // ayat 2026 kini berada di pasal lain
   const masuk = !!(kiri && kanan && kiri.pasal !== pasal && kanan.pasal === pasal);   // ayat 2026 berasal dari pasal lain
+  // v5.17: tindakan per ayat dikumpulkan di menu "⋯" (catat rapat, usulkan redaksi) agar baris tetap bersih.
+  const [mintaCatat, setMintaCatat] = useState(0);
+  const [mintaRedaksi, setMintaRedaksi] = useState(0);
+  const adaUsulan = !!(redaksi && redaksi.aktif);
 
   return (
     <div className={'jj-baris' + (terbuka ? ' jj-terbuka' : '') + (!jejak ? ' jj-tanpa' : '') + (monev.length && pertama ? ' jj-monev' : '') +
@@ -76,14 +82,22 @@ export default function BarisJejak({
           </div>
         ) : kanan ? (pertama ? (
           <>
+            {kanan.pasal === pasal ? (
+              <MenuTitik kelas="jj-menu" label="Tindakan untuk ayat ini" butir={[
+                { label: 'Catat rapat', keterangan: 'catatan tanpa mengubah bunyi', onPilih: () => setMintaCatat((x) => x + 1) },
+                { label: 'Usulkan redaksi', keterangan: 'usulan bunyi baru', sembunyi: !bisaSunting || adaUsulan, onPilih: () => setMintaRedaksi((x) => x + 1) }
+              ]} />
+            ) : null}
+            {sejak ? <span className={'jj-sejak jj-sejak-' + sejak.jenis} title={'Dibanding versi ' + sejak.label}>{sejak.jenis === 'baru' ? 'baru' : 'berubah'} sejak {sejak.label}</span> : null}
             <span className="jj-no">{kanan.pasal === 0 ? kanan.nomor : (kanan.nomor ? '(' + kanan.nomor + ')' : '')}</span>
             {pn ? <LencanaMonev daftar={pn.monev.concat(pn.monevAda || []).sort((a, b) => Number(a.butir) - Number(b.butir))} /> : null}
             {bisaBeda ? <TeksBeda kiri={kiri.teks} kanan={kanan.teks} sisi="kanan" />
               : <TeksSorot teks={kanan.teks} sorot={kanan.sorot} warna={warna} />}
             {jejak ? <span className="st-kecil" style={{ background: warnaSt || undefined }}>{String(jejak.status || '').split(' ')[0]}</span> : null}
             {kanan.pasal === pasal ? (
-              <KotakRedaksi ayat={kanan} redaksi={redaksi} kerja={bisaSunting} monev={monev} onGalat={onGalat} />
+              <KotakRedaksi ayat={kanan} redaksi={redaksi} kerja={bisaSunting} monev={monev} onGalat={onGalat} bukaSunting={mintaRedaksi} />
             ) : null}
+            {kanan.pasal === pasal ? <KotakRapat ayat={kanan} daftar={rapat} buka={mintaCatat} onGalat={onGalat} /> : null}
             {monev.length ? (
               <div className="kotak-tanda kotak-monev">
                 <b>Catatan asesor Monev</b>

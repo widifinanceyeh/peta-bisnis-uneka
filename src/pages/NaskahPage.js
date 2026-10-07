@@ -10,6 +10,9 @@ import { STORAGE_KEY } from '../config';
 import { hanyaLabel, jenisJejak, judulSama } from '../utils/rujukanHukum';
 import { ambilSasaran, langganSasaran, lepasSasaran } from '../utils/bukaAyat';
 import { namaPasal, adaPasal } from '../utils/rujukan';
+import MenuTitik from '../components/MenuTitik';
+import { RekapRapat, BekukanVersi, PilihBanding } from '../components/AlatRapat';
+import { api } from '../api';
 
 /** v5.15: pita dengan urusan sebanyak ini atau lebih tampil tertutup lebih dulu. */
 const BATAS_RINGKAS = 6;
@@ -55,8 +58,11 @@ const JENIS = [['substansi', 'Substansi'], ['baru', 'Muatan baru'], ['hapus', 'D
 
 const SARINGAN = [
   ['semua', 'Semua'], ['monev', 'Monev'], ['tugas', 'Tugas YEH/UNEKA'], ['usulan', 'Ayat dihapus belum dikonfirmasi'], ['temuan', 'Ada temuan'],
-  ['redaksi', 'Usulan redaksi'], ['berubah', 'Hanya ayat yang berubah']
+  ['redaksi', 'Usulan redaksi'], ['rapat', 'Ada catatan rapat terbuka'], ['berubah', 'Hanya ayat yang berubah']
 ];
+
+// v5.17: versi rapat pembanding yang dipilih (per perangkat).
+const KUNCI_BANDING = 'pb.naskahBanding.v517';
 
 export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah, urusan, ctx, saring, setSaring, onGalat, ruang }) {
   const [n, setN] = useState(ambilNaskah);
@@ -68,6 +74,11 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
   const [ciut, setCiut] = useState(() => bacaLokal(STORAGE_KEY.NASKAH_CIUT, '0') === '1');
   const [jenis, setJenis] = useState(() => bacaLokal(STORAGE_KEY.NASKAH_JENIS, 'semua'));
   const [galatBab, setGalatBab] = useState('');
+  // v5.17: alat rapat (rekap, bekukan versi, banding) dibuka dari menu "⋯" di kepala pasal.
+  const [alat, setAlat] = useState('');
+  const [labelBanding, setLabelBanding] = useState(() => bacaLokal(KUNCI_BANDING, ''));
+  const [banding, setBanding] = useState(null);
+  const [pesanAlat, setPesanAlat] = useState('');
   const [digulir, setDigulir] = useState(false);
   const [tahan, setTahan] = useState(false);
   const gulir = useRef(null);
@@ -139,6 +150,37 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
   const [sasaran, setSasaran] = useState(ambilSasaran);
   useEffect(() => langganSasaran(setSasaran), []);
   const redaksiAyat = useMemo(() => redaksiPerAyat(data), [data]);
+  // v5.17: catatan rapat per ayat.
+  const rapatAyat = useMemo(() => {
+    const o = {};
+    ((data && data.rapat) || []).forEach((c) => { (o[c.id26] = o[c.id26] || []).push(c); });
+    return o;
+  }, [data]);
+  // v5.17: banding dengan versi rapat yang dibekukan; dibaca ulang saat naskah dimuat ulang.
+  const adaInit = !!init;
+  useEffect(() => {
+    tulisLokal(KUNCI_BANDING, labelBanding || '');
+    if (!labelBanding || !adaInit) { setBanding(null); return undefined; }
+    let hidup = true;
+    api.bandingVersi(labelBanding).then((h) => {
+      if (!hidup) return;
+      if (!h.label) { setLabelBanding(''); setPesanAlat('Versi "' + labelBanding + '" tidak ditemukan lagi; banding dihentikan.'); return; }
+      setBanding(h);
+    }).catch((e) => { if (hidup) setPesanAlat('Banding gagal dibaca: ' + ((e && e.message) || e)); });
+    return () => { hidup = false; };
+  }, [labelBanding, adaInit]);
+  const sejakAyat = useMemo(() => {
+    const o = {};
+    if (!banding) return o;
+    banding.berubah.forEach((id) => { o[id] = { jenis: 'berubah', label: banding.label }; });
+    banding.baru.forEach((id) => { o[id] = { jenis: 'baru', label: banding.label }; });
+    return o;
+  }, [banding]);
+  const pasalBanding = useMemo(() => {
+    const t = new Set();
+    Object.keys(sejakAyat).forEach((id) => { const m = /^B(\d{3})\./.exec(id); if (m) t.add(Number(m[1])); });
+    return t;
+  }, [sejakAyat]);
   const indeksUrusan = useMemo(() => { const o = {}; (urusanN || []).forEach((u) => { o[u.id] = u; }); return o; }, [urusanN]);
   const penanda = useMemo(() => penandaAyat(telaah), [telaah]);
   const monevPsl = useMemo(() => monevPasal(telaah), [telaah]);
@@ -245,6 +287,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
       if (saring === 'usulan') return d.hapus > 0;
       if (saring === 'temuan') return pasalTemuan.has(d.pasal);
       if (saring === 'redaksi') return d.redaksi > 0;
+      if (saring === 'rapat') return d.rapat > 0;
       return true;
     });
   }, [daftar, cari, saring, kerja, pasalMonev, pasalTemuan, jenisAktif]);
@@ -357,6 +400,8 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
                       ? <i className="nk-perlu" title={'Perlu tindakan: ' + alasanPasal(d, pasalTemuan).join(', ')} aria-label="perlu tindakan">●</i>
                       : <span />}
                     <span className="nk-item-no">{namaPasal(d.pasal)}{berubah.has(d.pasal) ? <i className="nk-berubah" title="Berubah sejak terakhir dibuka" aria-label="berubah sejak terakhir dibuka">●</i> : null}
+                      {pasalBanding.has(d.pasal) ? <i className="nk-delta" title={'Ada ayat berubah sejak ' + labelBanding}>Δ</i> : null}
+                      {d.rapat ? <i className="nk-rapat" title={d.rapat + ' catatan rapat terbuka'}>✎</i> : null}
                       {jenisAktif !== 'semua' && d.jenis ? <span className="nk-jml" title={d.jenis[jenisAktif] + ' ayat ' + labelJenis(jenisAktif).toLowerCase()}>{d.jenis[jenisAktif]}</span> : null}</span>
                     <span className="nk-item-judul">{d.judul}</span>
                     {pasalMonev.has(d.pasal) ? <span className="tanda-m" title="Terkunci Monev">M</span> : <span />}
@@ -466,13 +511,29 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
             ))}
           </div>
         ) : null}
-        {kerja ? (
-          <div className="nk-alat">
-            <button type="button" className={'pil' + (pita ? ' aktif' : '')} onClick={() => setPita(!pita)} aria-pressed={pita}>Peta bisnis</button>
-            <button type="button" className={'pil' + (sorot ? ' aktif' : '')} onClick={() => setSorot(!sorot)} aria-pressed={sorot}>Sorot perubahan kata</button>
-            <button type="button" className="tbl tbl-ringan nk-cetak" onClick={() => window.print()}>Cetak A4</button>
-          </div>
-        ) : null}
+        <div className={'nk-alat' + (kerja ? '' : ' nk-alat-rapat')}>
+          {kerja ? (
+            <>
+              <button type="button" className={'pil' + (pita ? ' aktif' : '')} onClick={() => setPita(!pita)} aria-pressed={pita}>Peta bisnis</button>
+              <button type="button" className={'pil' + (sorot ? ' aktif' : '')} onClick={() => setSorot(!sorot)} aria-pressed={sorot}>Sorot perubahan kata</button>
+            </>
+          ) : null}
+          {labelBanding ? (
+            <span className="pil aktif nk-banding" title={banding ? banding.berubah.length + ' ayat berubah, ' + banding.baru.length + ' ayat baru sejak versi ini' : 'Membaca banding…'}>
+              Δ sejak {labelBanding}{banding ? ' · ' + (banding.berubah.length + banding.baru.length) : ''}
+              <button type="button" className="nk-banding-x" onClick={() => setLabelBanding('')} aria-label="Hentikan banding">×</button>
+            </span>
+          ) : null}
+          <span className="nk-alat-kanan">
+            {kerja ? <button type="button" className="tbl tbl-ringan nk-cetak" onClick={() => window.print()}>Cetak A4</button> : null}
+            <MenuTitik kelas="nk-menu" label="Alat rapat" butir={[
+              { label: 'Rekap rapat…', keterangan: 'catatan, usulan, dan konfirmasi per tanggal', onPilih: () => setAlat('rekap') },
+              { label: 'Banding sejak versi rapat…', keterangan: 'tandai ayat yang berubah', onPilih: () => setAlat('banding') },
+              { label: 'Bekukan versi rapat…', keterangan: 'simpan bunyi naskah saat ini', sembunyi: !kerja, onPilih: () => setAlat('bekukan') }
+            ]} />
+          </span>
+          {pesanAlat ? <span className="nk-pesan-alat">{pesanAlat} <button type="button" className="tautan" onClick={() => setPesanAlat('')}>tutup</button></span> : null}
+        </div>
         </div>
 
         {galatBab ? <div className="galat-kotak">{galatBab}</div> : null}
@@ -517,6 +578,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
                             onPilihPasal={onPilihPasal} onGalat={onGalat} bisaSunting={kerja} onDh={setDh}
                             pertama={pertama} dasar={k ? gabungDasar(catatan.per[k.id], alasanAyat[k.id]) : null} penanda={k ? penanda[k.id] : null}
                             warna={warna} redaksi={k ? redaksiAyat[k.id] : null}
+                            rapat={k ? rapatAyat[k.id] : null} sejak={k ? sejakAyat[k.id] : null}
                             pita={pitaPeta('2026', daftarUrusan)}
                             pitaKiri={pitaPeta('2025', daftarLama)} />
               );
@@ -532,6 +594,11 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
       </div>
 
       {dh ? <PanelDasarHukum item={dh} pasal={pasal} onTutup={() => setDh(null)} onBukaPasal={onPilihPasal} /> : null}
+      {alat === 'rekap' ? <RekapRapat onTutup={() => setAlat('')} onBukaPasal={onPilihPasal} /> : null}
+      {alat === 'bekukan' ? <BekukanVersi onTutup={() => setAlat('')}
+        onSelesai={(h) => { setAlat(''); setPesanAlat('Versi "' + h.label + '" dibekukan (' + h.jumlah + ' ayat).'); }} /> : null}
+      {alat === 'banding' ? <PilihBanding aktif={labelBanding} onTutup={() => setAlat('')}
+        onPilih={(l) => { setAlat(''); setPesanAlat(''); setLabelBanding(l); }} /> : null}
     </div>
   );
 }
