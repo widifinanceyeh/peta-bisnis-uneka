@@ -41,9 +41,10 @@ export default function PitaPeta({ daftar, ctx, tahun, onTelaah, onBukaUrusan, o
         const berubah = u.adaDiSumber !== false && ctx.aksi.some((a) => !samaSet(baru[a.kode], hLama[a.kode]));
         const langkah = urutkan(u.lama);
         const terbuka = !!buka[u.id];
+        // v5.18: satu aras dapat diisi lebih dari satu organ; semuanya ditampilkan (urut Cfg_Organ).
         const isi = lama
-          ? (k) => { const s = langkah.find((x) => x.aksi === k); return s ? s.organ : null; }
-          : (k) => Array.from(baru[k] || [])[0] || null;
+          ? (k) => urutOrgan(langkah.filter((x) => x.aksi === k).map((x) => x.organ), ctx)
+          : (k) => urutOrgan(Array.from(baru[k] || []), ctx);
         const letak = cermin ? (lama ? letak25(u) : letak26(u, ctx)) : '';
         return (
           <div key={u.id} className={cermin ? 'pp-luar' : undefined}>
@@ -129,25 +130,45 @@ function KepalaMini({ ctx }) {
   );
 }
 
-/** Lima kotak aras berisi kode organ. tandai = aras yang dituangkan ayat ini (hanya peta 2026). */
+/** Kode organ unik, diurutkan menurut kolom Urutan Cfg_Organ (Yayasan sebelum Rektor, dst.). */
+function urutOrgan(daftar, ctx) {
+  const unik = Array.from(new Set((daftar || []).filter(Boolean)));
+  const no = (k) => { const o = ctx.idxKode[k]; return o && o.urutan !== undefined && o.urutan !== '' ? Number(o.urutan) : 99; };
+  return unik.sort((a, b) => no(a) - no(b));
+}
+
+/**
+ * Lima kotak aras berisi kode organ. tandai = aras yang dituangkan ayat ini.
+ * v5.18: bila satu aras diisi dua organ atau lebih, kotaknya dibelah bertumpuk sehingga semua organ terbaca.
+ */
 function Mini({ ctx, isi, tandai }) {
   return (
     <span className="pp-am">
       {ctx.aksi.map((a) => {
-        const kode = isi(a.kode);
-        const o = kode && ctx.idxKode[kode];
+        const kode = isi(a.kode) || [];
         const ini = tandai && tandai.has(a.kode);
-        const label = o ? o.kode : (kode ? String(kode).replace(/^NAMA:/, '').slice(0, 5) : '—');
+        const nama = kode.map((k) => { const o = ctx.idxKode[k]; return o ? o.nama : String(k).replace(/^NAMA:/, ''); });
+        const judul = (a.nama || a.kode) + ': ' + (nama.length ? nama.join(' dan ') : 'tidak diatur') + (ini ? ' — dituangkan ayat ini' : '');
+        if (!kode.length) return <span key={a.kode} className={'pp-am-kosong' + (ini ? ' pp-am-ini' : '')} title={judul}>—</span>;
         return (
-          <span key={a.kode} className={(kode ? '' : 'pp-am-kosong') + (ini ? ' pp-am-ini' : '')}
-                style={o ? { background: o.warnaLatar, color: o.warnaTeks } : undefined}
-                title={(a.nama || a.kode) + ': ' + (o ? o.nama : (kode || 'tidak diatur')) + (ini ? ' — dituangkan ayat ini' : '')}>
-            {label}
+          <span key={a.kode} className={(kode.length > 1 ? 'pp-am-ganda' : '') + (ini ? ' pp-am-ini' : '')} title={judul}
+                style={kode.length === 1 ? warna(kode[0], ctx) : undefined}>
+            {kode.length === 1 ? label(kode[0], ctx) : kode.map((k) => <i key={k} style={warna(k, ctx)}>{label(k, ctx)}</i>)}
           </span>
         );
       })}
     </span>
   );
+}
+
+function warna(k, ctx) {
+  const o = ctx.idxKode[k];
+  return o ? { background: o.warnaLatar, color: o.warnaTeks } : undefined;
+}
+
+function label(k, ctx) {
+  const o = ctx.idxKode[k];
+  return o ? o.kode : String(k).replace(/^NAMA:/, '').slice(0, 5);
 }
 
 export function ChipOrgan({ kode, ctx, teks }) {

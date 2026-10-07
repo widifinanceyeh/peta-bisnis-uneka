@@ -395,6 +395,10 @@ mark.tugas { color: inherit; padding: 0 2px; border-radius: 2px; }
 .pp-am span { width: 34px; text-align: center; font-size: 8.5px; font-weight: 700; border-radius: 3px; padding: 2px 0; background: #e6e9f2; color: #a3a9ba; overflow: hidden; }
 .pp-am span.pp-am-kosong { background: transparent; border: 1px dashed #d5d9e6; padding: 1px 0; }
 .pp-am span.pp-am-ini { box-shadow: 0 0 0 2px var(--navy); }
+/* v5.18: aras berorgan ganda — kotak dibelah bertumpuk. */
+.pp-am span.pp-am-ganda { display: flex; flex-direction: column; gap: 1px; padding: 0; background: transparent; align-self: center; }
+.pp-am span.pp-am-ganda i { font-style: normal; display: block; border-radius: 2px; padding: 1px 0; font-size: 7.5px; line-height: 1.15; }
+.pp-am { align-items: center; }
 .pp-am-kepala { margin-left: auto; }
 .pp-am-kepala span { background: transparent; color: var(--teks-redup); font-size: 7.5px; padding: 0; }
 /* Pita peta 2025 (kolom Statuta 2025): nada abu agar terbedakan dari peta 2026. */
