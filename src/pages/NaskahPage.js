@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { langganNaskah, ambilNaskah, muatInitNaskah, muatBab, muatTelaah, muatDasarHukumPasal, muatTeks } from '../naskah';
+import { langganNaskah, ambilNaskah, muatInitNaskah, muatBab, muatTelaah, muatDasarHukumPasal, muatTeks, buatJejak } from '../naskah';
 import { RelAtas, TombolLaci } from '../components/TombolRel';
 import TombolTautan from '../components/TombolTautan';
 import BarisJejak, { TeksRujukan } from '../components/BarisJejak';
@@ -580,7 +580,8 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
                             warna={warna} redaksi={k ? redaksiAyat[k.id] : null}
                             rapat={k ? rapatAyat[k.id] : null} sejak={k ? sejakAyat[k.id] : null}
                             pita={pitaPeta('2026', daftarUrusan)}
-                            pitaKiri={pitaPeta('2025', daftarLama)} />
+                            pitaKiri={pitaPeta('2025', daftarLama)}
+                            onBuatJejak={(m) => buatJejak(m, pasal).then((j) => { setTerbuka(j.id); return j; })} />
               );
             })}
             {!tampil.length ? (

@@ -22,7 +22,7 @@ import { bacaDraf, tulisDraf, hapusDraf } from '../hooks/useDraf';
  */
 export default function BarisJejak({
   baris, pasal, cfg, init, sorot, terbuka, onBuka, onTutup, onPilihPasal, onGalat,
-  pertama, dasar, penanda, pita, pitaKiri, warna, bisaSunting, redaksi, onDh, rapat, sejak
+  pertama, dasar, penanda, pita, pitaKiri, warna, bisaSunting, redaksi, onDh, rapat, sejak, onBuatJejak
 }) {
   const { jejak, kiri, kanan } = baris;
   const warnaSt = warnaStatus(cfg, jejak ? jejak.status : '');
@@ -36,6 +36,15 @@ export default function BarisJejak({
   const [mintaCatat, setMintaCatat] = useState(0);
   const [mintaRedaksi, setMintaRedaksi] = useState(0);
   const adaUsulan = !!(redaksi && redaksi.aktif);
+  // v5.19: ayat tanpa jejak dapat dibuatkan jejak langsung dari web; kode jejak dibuat otomatis.
+  const [membuat, setMembuat] = useState(false);
+  const buat = async () => {
+    if (membuat || !onBuatJejak) return;
+    setMembuat(true);
+    try { await onBuatJejak({ id25: kiri ? kiri.id : '', id26: kanan ? kanan.id : '' }); }
+    catch (e) { if (onGalat) onGalat('Jejak gagal dibuat: ' + (e && e.message ? e.message : e)); }
+    finally { setMembuat(false); }
+  };
 
   return (
     <div className={'jj-baris' + (terbuka ? ' jj-terbuka' : '') + (!jejak ? ' jj-tanpa' : '') + (monev.length && pertama ? ' jj-monev' : '') +
@@ -60,6 +69,12 @@ export default function BarisJejak({
                   onClick={() => { if (!bisaSunting) return; if (terbuka) onTutup(); else onBuka(); }} aria-expanded={terbuka}
                   title={bisaSunting ? 'Ubah status jejak' : 'Status jejak'}>
             {jejak.status || 'tanpa status'}{bisaSunting ? <span className="jj-panah"> ▾</span> : null}
+          </button>
+        ) : bisaSunting && onBuatJejak && (kanan ? kanan.pasal === pasal : kiri && kiri.pasal === pasal) ? (
+          <button type="button" className="jj-buat" onClick={buat} disabled={membuat}
+                  title={kanan ? 'Buat baris jejak untuk ayat ini. Status awal BARU; pasangan Statuta 2025 dan alasan dapat diisi sesudahnya.'
+                    : 'Buat baris jejak untuk ayat Statuta 2025 ini. Status awal DIHAPUS; pasangan 2026 dan alasan dapat diisi sesudahnya.'}>
+            {membuat ? 'membuat…' : '+ Buat jejak'}
           </button>
         ) : <span className="jj-belum">belum ada jejak</span>}
         {jejak && !jejak.dikonfirmasi ? <span className="tanda-usulan">usulan</span> : null}

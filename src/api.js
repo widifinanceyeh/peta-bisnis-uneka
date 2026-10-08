@@ -213,6 +213,7 @@ export const api = {
   naskahBab: (bab) => apiGet('naskahBab', { bab }),
   naskahPasal: (pasal) => apiGet('naskahPasal', { pasal }),
   saveJejak: (payload) => simpanDenganCadanganAksi(Object.assign({ action: 'saveJejak' }, payload), 'saveJejak'),
+  createJejak: (payload) => simpanDenganCadanganAksi(Object.assign({ action: 'createJejak' }, payload), 'createJejak'),   // v5.19
   // Telaah (v5, lihat Telaah.gs).
   naskahTelaah: () => apiGet('naskahTelaah'),
   naskahYatim: () => apiGet('naskahYatim'),

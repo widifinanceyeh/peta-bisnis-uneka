@@ -435,6 +435,29 @@ async function simpanJejak_(muatan) {
 }
 
 /**
+ * v5.19: membuat baris jejak untuk ayat yang belum punya jejak. Kode jejak dibuat server (kode terbesar + 1).
+ * Jejak baru disisipkan ke salinan pasal yang sudah dimuat, lalu penanda daftar pasal dihitung ulang.
+ * @param {Object} muatan {id25?, id26?, status?, alasan?}
+ * @param {number} [pasalTampil] pasal yang sedang dibuka (ikut disisipi walau nomornya lain dari ID ayat)
+ */
+async function buatJejak_(muatan, pasalTampil) {
+  const j = await api.createJejak(muatan);
+  const pasal = Object.assign({}, keadaan.pasal);
+  let ubah = false;
+  const tuju = [j.id25, j.id26].filter(Boolean).map(pasalDariId);
+  if (pasalTampil !== undefined && pasalTampil !== null) tuju.push(Number(pasalTampil));
+  tuju.filter((n, i, a) => a.indexOf(n) === i).forEach((n) => {
+    const p = pasal[n];
+    if (!p || !p.jejak || p.jejak.some((x) => x.id === j.id)) return;
+    pasal[n] = Object.assign({}, p, { jejak: p.jejak.concat([j]) });
+    ubah = true;
+  });
+  if (ubah) set({ pasal });
+  rekapUlang();
+  return j;
+}
+
+/**
  * Putusan atas ayat tanpa urusan (Lampiran Telaah). Optimistis seperti simpanJejak.
  * @param {Object} muatan {id26, putusan, alasan, urusan?, oleh?}
  */
@@ -677,6 +700,7 @@ function lacak(fn) {
 }
 
 export const simpanJejak = lacak(simpanJejak_);
+export const buatJejak = lacak(buatJejak_);
 export const simpanPutusan = lacak(simpanPutusan_);
 export const simpanKembar = lacak(simpanKembar_);
 export const simpanRedaksi = lacak(simpanRedaksi_);

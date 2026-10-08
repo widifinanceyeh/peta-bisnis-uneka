@@ -288,6 +288,11 @@ mark.tugas { color: inherit; padding: 0 2px; border-radius: 2px; }
 .jj-no { font-weight: 700; color: var(--navy); margin-right: 5px; }
 .jj-kosong { color: #b9bfcc; }
 .jj-belum { font-size: 10px; color: var(--teks-redup); font-style: italic; text-align: center; }
+/* v5.19: buat jejak untuk ayat yang belum punya jejak (Mode kerja) */
+.jj-buat { font: inherit; font-size: 10.5px; color: var(--teks-redup); background: transparent; border: 1px dashed rgba(30, 39, 97, 0.28);
+  border-radius: 999px; padding: 3px 9px; cursor: pointer; white-space: nowrap; }
+.jj-buat:hover { color: var(--navy); border-color: var(--navy); border-style: solid; background: rgba(30, 39, 97, 0.04); }
+.jj-buat:disabled { cursor: progress; opacity: 0.6; }
 .jj-panah { font-size: 9px; opacity: 0.7; }
 .jj-asal {
   display: inline-block; margin: 0 6px 4px 0; font-family: var(--font); font-size: 10.5px; color: #5b3fa8;
