@@ -113,9 +113,7 @@ export default function App() {
     window.history.replaceState(Object.assign({}, st, { n: langkahKini() }), '', url);
   }, []);
   const [saringNaskah, setSaringNaskah] = useState('semua');
-  const [ruang, setRuangState] = useState(() => {
-    try { return window.localStorage.getItem(STORAGE_KEY.RUANG) === 'kerja' ? 'kerja' : 'rapat'; } catch (e) { return 'rapat'; }
-  });
+  const [ruang, setRuangState] = useState('kerja');   // selalu dibuka di Mode kerja
   const [naskah, setNaskah] = useState(ambilNaskah);
   useEffect(() => langganNaskah(setNaskah), []);
   // v5.6: paket Naskah dari peramban lebih dulu, lalu pemeriksaan versi di latar.
