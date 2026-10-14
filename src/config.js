@@ -4,7 +4,7 @@
  * label kolom, judul halaman). Semuanya berasal dari sheet Cfg_*.
  */
 
-export const APP_VERSION = '5.21.0';
+export const APP_VERSION = '5.22.0';
 
 /**
  * URL deployment Apps Script (.../exec).
@@ -49,7 +49,8 @@ export const STORAGE_KEY = {
   CACHE_NASKAH: 'pb.nkCache.v54',
   REL_CIUT: 'pb.relCiut.v55',
   POSISI: 'pb.posisi.v58',          // v5.8: alamat halaman terakhir (dibuka tanpa alamat = lanjut dari sini)
-  LIHAT: 'pb.lihatPasal.v58'        // v5.8: sidik pasal saat terakhir dibuka (tanda berubah)
+  LIHAT: 'pb.lihatPasal.v58',       // v5.8: sidik pasal saat terakhir dibuka (tanda berubah)
+  MAKS_LANGKAH: 'pb.maksLangkah.v522' // v5.22: langkah terjauh di tab ini (tombol Maju), sessionStorage
 };
 
 export const TIMEOUT_MS = 60000;

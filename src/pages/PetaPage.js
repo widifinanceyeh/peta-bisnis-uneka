@@ -90,97 +90,32 @@ export default function PetaPage({
   const contohDalam = cfg.organ.find((o) => !aturan.organLuar.has(String(o.kode).toUpperCase()));
   const contohLuar = cfg.organ.find((o) => aturan.organLuar.has(String(o.kode).toUpperCase()));
 
-  const chip = (o, kecil) => (
-    <span key={o.kode} className={'legenda-item' + (kecil ? ' legenda-kecil' : '')}
-          style={{ background: o.warnaLatar, color: o.warnaTeks }} title={o.nama}>
-      {ringkas ? o.kode : o.nama}
+  const chipKet = (o, kecil) => (
+    <span key={o.kode} className="fb-ket-item">
+      <span className={'legenda-item' + (kecil ? ' legenda-kecil' : '')} style={{ background: o.warnaLatar, color: o.warnaTeks }}>{o.kode}</span>
+      <span className="fb-ket-nama">{o.nama}</span>
     </span>
   );
 
-  return (
-    <div className="halaman halaman-peta">
-      <FilterBar
-        urusan={urusan} filter={filter} setFilter={setFilter}
-        jumlahHasil={daftar.length} jumlahTotal={urusan.length}
-        ringkas={ringkas} setRingkas={setRingkas} onReset={() => setFilter(FILTER_KOSONG)}
-        formatAras={formatAras} pilihan={pilihan} tampilLama={tampilLama} setTampilLama={setTampilLama}
-        adaPasal={formatAras && adaPasalAras(cfg)} tampilPasal={tampilPasal} setTampilPasal={setTampilPasal}
-        kelompok={formatAras ? kelompok : []}
-      />
-
-      <div className="legenda">
+  // v5.22: keterangan kode organ dan warna penuangan dipindah ke panel Tampilan.
+  const keterangan = (
+    <>
+      <div className="fb-ket-baris">
         {formatAras ? (
           <>
             <span className="legenda-label">{labelBaru}</span>
-            {organRancangan.map((o) => chip(o))}
-            {tampilLama ? (
-              <>
-                <span className="legenda-label legenda-label-jarak">{labelLama}</span>
-                {organLama.map((o) => chip(o, true))}
-              </>
-            ) : null}
+            {organRancangan.map((o) => chipKet(o))}
           </>
-        ) : organLegenda.map((o) => chip(o))}
-
-        <span className="rekap">
-          {rekap.jumlahTetap ? (
-            <>
-              <b className="rekap-abu" title="Isi cukup di batang tubuh; aras usul–sah mengikuti C1.1 Perubahan Statuta">{rekap.jumlahTetap}</b> muatan tetap
-              <span className="titik">·</span>
-            </>
-          ) : null}
-          <b className="rekap-hijau">{rekap.sesuai}</b> sama
-          <span className="titik">·</span>
-          <b className="rekap-kuning">{rekap.beda}</b> berbeda
-          <span className="titik">·</span>
-          <b className="rekap-abu">{rekap.belum}</b> belum dirancang
-          {formatAras && rekap.hanya2025 ? (
-            <>
-              <span className="titik">·</span>
-              <b className="rekap-abu">{rekap.hanya2025}</b> 2025 saja
-            </>
-          ) : null}
-          {formatAras ? (
-            <>
-              <span className="titik">·</span>
-              <b className={rekap.tidakLengkap ? 'rekap-merah' : 'rekap-hijau'}>{rekap.tidakLengkap}</b> ada aras kosong
-            </>
-          ) : null}
-          {adaKolomMonev ? (
-            <>
-              <span className="titik">·</span>
-              <b className="rekap-merah">{rekap.kunci}</b> terkunci Monev
-            </>
-          ) : null}
-        </span>
+        ) : organLegenda.map((o) => chipKet(o))}
       </div>
-
-      {formatAras && Object.keys(rekap.perStatus).length ? (
-        <div className="legenda-status">
-          {((pilihan && pilihan.STATUS) || []).concat(
-            Object.keys(rekap.perStatus).filter((s) => !((pilihan && pilihan.STATUS) || []).includes(s))
-          ).filter((s) => rekap.perStatus[s]).map((s) => (
-            <button key={s} type="button"
-                    className={'status-saring' + (filter.statusBahasan === s ? ' aktif' : '')}
-                    onClick={() => setFilter(Object.assign({}, filter, { statusBahasan: filter.statusBahasan === s ? '' : s }))}
-                    title="Klik untuk menyaring">
-              <b>{rekap.perStatus[s]}</b> {s}
-            </button>
-          ))}
-          {rekap.hanya2025 ? (
-            <button type="button"
-                    className={'status-saring' + (filter.perubahan === '2025' ? ' aktif' : '')}
-                    onClick={() => setFilter(Object.assign({}, filter, { perubahan: filter.perubahan === '2025' ? '' : '2025' }))}
-                    title="Klik untuk menampilkan urusan yang ada pada Statuta 2025 tetapi tidak lagi menjadi urusan mandiri pada Rancangan 2026">
-              <b>{rekap.hanya2025}</b> 2025 SAJA
-            </button>
-          ) : null}
+      {formatAras && tampilLama ? (
+        <div className="fb-ket-baris">
+          <span className="legenda-label">{labelLama}</span>
+          {organLama.map((o) => chipKet(o, true))}
         </div>
       ) : null}
-
       {aturan.aktif && (!formatAras || tampilLama) && contohDalam && contohLuar ? (
         <div className="legenda-tuang">
-          {formatAras ? <span className="legenda-tuang-teks"><b>{labelLama}:</b></span> : null}
           <span className="contoh-penuh" style={{ background: contohDalam.warnaLatar, borderColor: contohDalam.warnaLatar, color: contohDalam.warnaTeks }}>
             1 {contohDalam.kode}
           </span>
@@ -194,6 +129,70 @@ export default function PetaPage({
           {rekap.luar ? <span className="legenda-tuang-jumlah">{rekap.luar} urusan seluruhnya di luar Statuta</span> : null}
         </div>
       ) : null}
+    </>
+  );
+
+  // v5.22: satu baris ringkasan. Setiap angka dapat diklik untuk menyaring; angka nol tidak ditampilkan
+  // kecuali saringannya sedang aktif. Saringan dari panel yang tidak punya angka sendiri tampil sebagai label dengan ×.
+  const setel = (k, v) => setFilter(Object.assign({}, filter, { [k]: filter[k] === v ? '' : v }));
+  const hapus = (k) => setFilter(Object.assign({}, filter, { [k]: '' }));
+  const urutStatus = ((pilihan && pilihan.STATUS) || []).concat(
+    Object.keys(rekap.perStatus).filter((s) => !((pilihan && pilihan.STATUS) || []).includes(s))
+  );
+  if (filter.statusBahasan && !urutStatus.includes(filter.statusBahasan)) urutStatus.push(filter.statusBahasan);
+  const tombolStatus = formatAras
+    ? urutStatus.filter((s) => rekap.perStatus[s] || filter.statusBahasan === s)
+        .map((s) => ({ k: 'statusBahasan', v: s, n: rekap.perStatus[s] || 0, teks: s, kelas: '' }))
+    : [];
+  const tombolRekap = [
+    { k: 'jenis', v: 'TETAP', n: rekap.jumlahTetap, teks: 'muatan tetap', kelas: 'rekap-abu' },
+    { k: 'perubahan', v: 'BERUBAH', n: rekap.beda, teks: 'berbeda', kelas: 'rekap-kuning' },
+    { k: 'perubahan', v: 'SAMA', n: rekap.sesuai, teks: 'sama', kelas: 'rekap-hijau' },
+    { k: 'perubahan', v: 'BELUM', n: rekap.belum, teks: 'belum dirancang', kelas: 'rekap-abu' },
+    formatAras ? { k: 'perubahan', v: '2025', n: rekap.hanya2025, teks: '2025 saja', kelas: 'rekap-abu' } : null,
+    formatAras ? { k: 'lengkap', v: 'TIDAK', n: rekap.tidakLengkap, teks: 'ada aras kosong', kelas: 'rekap-merah' } : null,
+    adaKolomMonev ? { k: 'monev', v: '1', n: rekap.kunci, teks: 'terkunci Monev', kelas: 'rekap-merah' } : null
+  ].filter((t) => t && (t.n || filter[t.k] === t.v));
+  const diwakili = (k, v) => tombolStatus.concat(tombolRekap).some((t) => t.k === k && t.v === v);
+  const NAMA = {
+    jenis: { ALUR: 'Alur kewenangan', TETAP: 'Muatan tetap' },
+    lengkap: { YA: 'Lima aras lengkap', TIDAK: 'Ada aras kosong' },
+    perubahan: { BERUBAH: 'Berbeda dari 2025', SAMA: 'Sama dengan 2025', BELUM: 'Belum ada rancangan', TAMBAHAN: 'Urusan tambahan', 2025: '2025 saja' }
+  };
+  const labelAktif = ['jenis', 'muatan', 'penuangan', 'lengkap', 'status', 'perubahan']
+    .filter((k) => String(filter[k] || '').trim() && !diwakili(k, filter[k]))
+    .map((k) => ({ k, teks: (k === 'status' ? '2025: ' : '') + ((NAMA[k] && NAMA[k][filter[k]]) || filter[k]) }));
+  const tombol = (t) => {
+    const aktif = filter[t.k] === t.v;
+    return (
+      <button key={t.k + t.v} type="button" className={'status-saring' + (aktif ? ' aktif' : '')}
+              onClick={() => setel(t.k, t.v)} title={aktif ? 'Klik untuk melepas saringan' : 'Klik untuk menyaring'}>
+        <b className={aktif ? '' : t.kelas}>{t.n}</b> {t.teks}{aktif ? <span className="ringkas-x" aria-hidden="true">×</span> : null}
+      </button>
+    );
+  };
+
+  return (
+    <div className="halaman halaman-peta">
+      <FilterBar
+        urusan={urusan} filter={filter} setFilter={setFilter}
+        jumlahHasil={daftar.length} jumlahTotal={urusan.length}
+        ringkas={ringkas} setRingkas={setRingkas} onReset={() => setFilter(FILTER_KOSONG)}
+        formatAras={formatAras} pilihan={pilihan} tampilLama={tampilLama} setTampilLama={setTampilLama}
+        adaPasal={formatAras && adaPasalAras(cfg)} tampilPasal={tampilPasal} setTampilPasal={setTampilPasal}
+        kelompok={formatAras ? kelompok : []} keterangan={keterangan}
+      />
+
+      <div className="ringkas-baris">
+        {labelAktif.map((a) => (
+          <button key={a.k} type="button" className="label-saring" onClick={() => hapus(a.k)} title="Lepas saringan ini">
+            {a.teks}<span className="ringkas-x" aria-hidden="true">×</span>
+          </button>
+        ))}
+        {tombolStatus.map(tombol)}
+        {tombolStatus.length && tombolRekap.length ? <span className="ringkas-pisah" aria-hidden="true" /> : null}
+        {tombolRekap.map(tombol)}
+      </div>
 
       {formatAras ? (
         <MatriksAras

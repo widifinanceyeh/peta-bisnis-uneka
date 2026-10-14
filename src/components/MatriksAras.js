@@ -33,6 +33,13 @@ export default function MatriksAras({
     const el = wrapRef.current;
     if (!el || !gulirRef) return;
     if (gulirRef.current > 0) el.scrollTop = gulirRef.current;
+    // v5.22: bila urusan yang terakhir dibuka tidak tampak di layar, gulir ke barisnya.
+    const baris = el.querySelector('tr.baris-pilih');
+    if (!baris) return;
+    const w = el.getBoundingClientRect(), r = baris.getBoundingClientRect();
+    const kepala = el.querySelector('thead');
+    const atas = w.top + (kepala ? kepala.getBoundingClientRect().height : 0);
+    if (r.top < atas || r.bottom > w.bottom) el.scrollTop += r.top - atas - Math.max(0, (w.bottom - atas) / 3);
   }, [gulirRef]);
 
   const catatGulir = (e) => { if (gulirRef) gulirRef.current = e.currentTarget.scrollTop; };

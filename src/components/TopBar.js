@@ -8,8 +8,16 @@ import { APP_VERSION } from '../config';
  * Versi 5.4: Refresh, Diagnosa, dan nomor versi dipindah ke satu menu ⋯.
  * Versi 5.6: penanda kecil "memperbarui…" selama paket data diunduh di latar.
  * Versi 5.8: tombol Kembali (satu langkah riwayat); tampil hanya bila ada langkah sebelumnya di dalam aplikasi.
+ * Versi 5.22: sepasang ikon Mundur dan Maju yang selalu tampil; pudar bila tidak ada langkah yang dituju.
  */
-export default function TopBar({ judul, subJudul, onSegarkan, onDiagnosa, sedangMuat, kembali, menu, ruang, onRuang, memperbarui }) {
+const Panah = ({ arah }) => (
+  <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+    <path d={arah === 'kiri' ? 'M10 3 5 8l5 5' : 'M6 3l5 5-5 5'} fill="none" stroke="currentColor" strokeWidth="2"
+          strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+export default function TopBar({ judul, subJudul, onSegarkan, onDiagnosa, sedangMuat, mundur, maju, menu, ruang, onRuang, memperbarui }) {
   const [lain, setLain] = useState(false);
   useEffect(() => {
     if (!lain) return undefined;
@@ -21,11 +29,16 @@ export default function TopBar({ judul, subJudul, onSegarkan, onDiagnosa, sedang
   return (
     <header className="topbar">
       <div className="topbar-kiri">
-        {kembali ? (
-          <button type="button" className="topbar-kembali" onClick={kembali} aria-label="Kembali ke langkah sebelumnya" title="Kembali ke langkah sebelumnya">
-            <span aria-hidden="true">&larr;</span><span className="topbar-kembali-teks">Kembali</span>
+        <div className="topbar-nav" role="group" aria-label="Riwayat halaman">
+          <button type="button" className="topbar-nav-tbl" onClick={mundur || undefined} disabled={!mundur}
+                  aria-label="Mundur ke halaman sebelumnya" title="Mundur ke halaman sebelumnya">
+            <Panah arah="kiri" />
           </button>
-        ) : null}
+          <button type="button" className="topbar-nav-tbl" onClick={maju || undefined} disabled={!maju}
+                  aria-label="Maju ke halaman berikutnya" title="Maju ke halaman berikutnya">
+            <Panah arah="kanan" />
+          </button>
+        </div>
         <div className="topbar-teks">
           <div className="topbar-judul">{judul}</div>
           {subJudul ? <div className="topbar-sub">{subJudul}</div> : null}

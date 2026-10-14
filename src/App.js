@@ -64,6 +64,15 @@ function langkahKini() {
   try { const s = window.history.state; return s && typeof s.n === 'number' ? s.n : 0; } catch (e) { return 0; }
 }
 
+/** v5.22: langkah terjauh yang pernah dibuka di tab ini. Peramban tidak memberi tahu ada-tidaknya halaman di depan,
+ *  jadi tombol Maju memakai catatan ini. Membuka halaman baru memangkas langkah di depannya. */
+function bacaMaks() {
+  try { const v = Number(window.sessionStorage.getItem(STORAGE_KEY.MAKS_LANGKAH)); return Math.max(isNaN(v) ? 0 : v, langkahKini()); } catch (e) { return langkahKini(); }
+}
+function tulisMaks(n) {
+  try { window.sessionStorage.setItem(STORAGE_KEY.MAKS_LANGKAH, String(n)); } catch (e) { /* abaikan */ }
+}
+
 /**
  * Dua halaman, satu pada satu waktu.
  *
@@ -102,12 +111,14 @@ export default function App() {
   const [selTurunan, setSelTurunan] = useState(awal.turunan || '');   // v5.8: dokumen turunan terpilih
   const [selKerja, setSelKerja] = useState(awal.kerja || '');         // v5.8: butir Periksa terpilih
   const [langkah, setLangkah] = useState(langkahKini);               // v5.8: tombol Kembali pada bilah atas
+  const [maksLangkah, setMaksLangkah] = useState(bacaMaks);           // v5.22: tombol Maju
 
   /** Riwayat peramban: setiap langkah di dalam aplikasi diberi nomor (n) supaya tombol Kembali tahu batasnya. */
   const dorong = useCallback((st, url) => {
     const n = langkahKini() + 1;
     window.history.pushState(Object.assign({}, st, { n }), '', url);
     setLangkah(n);
+    setMaksLangkah(n); tulisMaks(n);
   }, []);
   const gantiRiwayat = useCallback((st, url) => {
     window.history.replaceState(Object.assign({}, st, { n: langkahKini() }), '', url);
@@ -146,6 +157,9 @@ export default function App() {
 
   // Posisi gulir tabel peta, dipulihkan saat kembali dari rincian.
   const gulirRef = useRef(0);
+  // v5.22: urusan yang terakhir dibuka tetap ditandai di peta, dan barisnya digulir ke layar saat kembali.
+  const [idSorot, setIdSorot] = useState(awal.id || null);
+  useEffect(() => { if (idTerpilih) setIdSorot(idTerpilih); }, [idTerpilih]);
   // Diisi halaman rincian; dipakai memaksa simpan sebelum berpindah.
   const flushRef = useRef(null);
 
@@ -466,7 +480,8 @@ export default function App() {
         onDiagnosa={() => setBukaDiagnosa(true)}
         sedangMuat={memuat || sedangRefresh}
         memperbarui={!!naskah.memperbarui}
-        kembali={langkah > 0 ? () => window.history.back() : null}
+        mundur={langkah > 0 ? () => window.history.back() : null}
+        maju={langkah < maksLangkah ? () => window.history.forward() : null}
         menu={menu}
         ruang={ruang}
         onRuang={setRuang}
@@ -544,7 +559,7 @@ export default function App() {
           setFilter={setFilter}
           ringkas={ringkas}
           setRingkas={setRingkas}
-          idTerpilih={idTerpilih}
+          idTerpilih={idTerpilih || idSorot}
           gulirRef={gulirRef}
           onPilih={bukaRincian}
           formatAras={formatAras}

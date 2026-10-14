@@ -616,3 +616,68 @@
 .panel-tetap p { margin: 6px 0 0; }
 
 .tanda-tetap { background: #7a8190 !important; color: #fff !important; }
+
+/* ======================================================= v5.22 MUNDUR/MAJU, BARIS SARING PETA */
+.topbar-nav { display: inline-flex; flex: 0 0 auto; }
+.topbar-nav-tbl {
+  width: 32px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--putih); background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.35); cursor: pointer;
+}
+.topbar-nav-tbl:first-child { border-radius: var(--r) 0 0 var(--r); border-right-width: 0; }
+.topbar-nav-tbl:last-child { border-radius: 0 var(--r) var(--r) 0; }
+.topbar-nav-tbl:hover:not(:disabled) { background: rgba(255, 255, 255, 0.24); }
+.topbar-nav-tbl:disabled { opacity: 0.35; cursor: default; }
+.topbar-nav-tbl:focus-visible { outline: 2px solid var(--putih); outline-offset: 1px; }
+
+.halaman-peta .filterbar { position: relative; z-index: 35; }
+.fb-kelompok { flex: 0 1 300px; max-width: 320px; }
+.fb-panel-wadah { position: static; }
+.fb-pemicu { display: inline-flex; align-items: center; gap: 6px; background: var(--putih); }
+.fb-pemicu.aktif, .fb-pemicu.ada { border-color: var(--navy); color: var(--navy); }
+.fb-angka {
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--navy); color: var(--putih);
+  font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
+}
+.fb-segitiga { font-size: 10px; opacity: 0.7; }
+.fb-tirai { display: none; }
+.fb-panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; width: min(620px, 100%); box-sizing: border-box;
+  max-height: 70vh; overflow: auto; display: flex; flex-direction: column; gap: 12px; padding: 14px 16px;
+  background: var(--putih); border: 1px solid var(--garis); border-radius: 8px; box-shadow: 0 10px 28px rgba(30, 39, 97, 0.16);
+}
+.fb-panel-judul { font-size: 13px; font-weight: 700; color: var(--navy); }
+.fb-kisi { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; }
+.fb-medan { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--teks-redup); min-width: 0; }
+.fb-medan .inp { min-width: 0; width: 100%; }
+.fb-saklar { grid-column: 1 / -1; font-size: 13px; white-space: normal; }
+.fb-saklar-daftar { display: flex; flex-direction: column; gap: 10px; }
+.fb-keterangan { border-top: 1px solid var(--garis); padding-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.fb-ket-baris { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.fb-ket-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.fb-ket-nama { color: var(--teks); }
+.fb-panel-kaki { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--garis); padding-top: 10px; }
+
+.ringkas-baris { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: 0 0 auto; }
+.ringkas-baris:empty { display: none; }
+.ringkas-pisah { width: 1px; height: 18px; background: var(--garis); margin: 0 4px; }
+.label-saring {
+  font-family: var(--font); font-size: 11px; padding: 3px 8px 3px 10px; border-radius: 100px; cursor: pointer;
+  display: inline-flex; align-items: center; border: 1px solid #c9d4f2; background: var(--ice); color: var(--navy);
+}
+.label-saring:hover { background: #dfe6f8; }
+.ringkas-x { margin-left: 6px; font-weight: 700; opacity: 0.8; }
+
+.baris-pilih > td.l1, .baris-pilih > td.l2 { background-color: #eef2fd; }
+
+@media (max-width: 760px) {
+  .topbar-nav-tbl { width: 34px; height: 32px; }
+  .cari, .fb-kelompok { flex: 1 1 100%; max-width: none; }
+  .fb-tirai { display: block; position: fixed; inset: 0; z-index: 60; background: rgba(20, 24, 40, 0.35); }
+  .fb-panel {
+    position: fixed; top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 82vh; z-index: 61;
+    border-radius: 14px 14px 0 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+  .fb-kisi { grid-template-columns: 1fr; }
+  .fb-panel-kaki .tbl { flex: 1 1 0; }
+  .fb-medan .inp { padding: 9px 10px; font-size: 14px; }
+}
