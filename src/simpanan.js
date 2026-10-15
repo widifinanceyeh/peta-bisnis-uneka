@@ -17,12 +17,31 @@ function bukaDb() {
       if (!window.indexedDB) { resolve(null); return; }
       const req = window.indexedDB.open(NAMA_DB, 1);
       req.onupgradeneeded = () => { try { req.result.createObjectStore(TOKO); } catch (e) { /* sudah ada */ } };
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => {
+        const db = req.result;
+        // v5.23: bila basis data diminta dihapus (Keluar), sambungan ini menutup diri.
+        db.onversionchange = () => { try { db.close(); } catch (e) { /* abaikan */ } janjiDb = null; };
+        resolve(db);
+      };
       req.onerror = () => resolve(null);
       req.onblocked = () => resolve(null);
     } catch (e) { resolve(null); }
   });
   return janjiDb;
+}
+
+/** v5.23: dipakai saat Keluar. Menutup sambungan lalu menghapus seluruh salinan; selesai paling lama 3 detik. */
+export async function hapusSemuaSimpanan() {
+  if (janjiDb) { try { const db = await janjiDb; if (db) db.close(); } catch (e) { /* abaikan */ } janjiDb = null; }
+  return new Promise((resolve) => {
+    try {
+      if (!window.indexedDB) { resolve(true); return; }
+      const req = window.indexedDB.deleteDatabase(NAMA_DB);
+      const t = setTimeout(() => resolve(false), 3000);
+      req.onsuccess = () => { clearTimeout(t); resolve(true); };
+      req.onerror = () => { clearTimeout(t); resolve(false); };
+    } catch (e) { resolve(false); }
+  });
 }
 
 export async function bacaSimpanan(kunci) {

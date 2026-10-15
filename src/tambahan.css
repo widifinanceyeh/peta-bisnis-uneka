@@ -629,7 +629,7 @@
 .topbar-nav-tbl:disabled { opacity: 0.35; cursor: default; }
 .topbar-nav-tbl:focus-visible { outline: 2px solid var(--putih); outline-offset: 1px; }
 
-.halaman-peta .filterbar { position: relative; z-index: 35; }
+.halaman-peta .filterbar { position: relative; z-index: 25; }   /* di bawah bilah atas (30), di atas kepala tabel (20) */
 .fb-kelompok { flex: 0 1 300px; max-width: 320px; }
 .fb-panel-wadah { position: static; }
 .fb-pemicu { display: inline-flex; align-items: center; gap: 6px; background: var(--putih); }
@@ -681,3 +681,29 @@
   .fb-panel-kaki .tbl { flex: 1 1 0; }
   .fb-medan .inp { padding: 9px 10px; font-size: 14px; }
 }
+
+/* ======================================================= v5.23 MASUK DAN GANTI SANDI */
+.masuk-latar {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;
+  background: var(--latar);
+}
+.masuk-lapis { position: fixed; inset: 0; z-index: 200; min-height: 0; background: rgba(20, 24, 40, 0.45); }
+.masuk-kartu {
+  width: 100%; max-width: 380px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px;
+  padding: 28px 26px; background: var(--putih); border: 1px solid var(--garis); border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(30, 39, 97, 0.12); border-top: 4px solid var(--navy);
+}
+.masuk-judul { font-size: 17px; font-weight: 700; color: var(--navy); }
+.masuk-sub { font-size: 13px; color: var(--teks-redup); margin-top: -8px; }
+.masuk-medan { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--teks-redup); }
+.masuk-medan .inp { min-width: 0; width: 100%; box-sizing: border-box; padding: 9px 11px; font-size: 14px; }
+.masuk-sandi { position: relative; display: flex; }
+.masuk-sandi .inp { padding-right: 96px; }
+.masuk-lihat {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%); border: 0; background: transparent;
+  font-family: var(--font); font-size: 12px; color: var(--navy); cursor: pointer; padding: 6px 8px;
+}
+.masuk-galat { font-size: 12.5px; color: var(--merah-teks); background: var(--merah); border-radius: var(--r-kecil); padding: 8px 10px; }
+.masuk-tombol { width: 100%; padding: 10px 14px; font-size: 14px; font-weight: 700; background: var(--navy); color: var(--putih); border-color: var(--navy); }
+.masuk-tombol:disabled { opacity: 0.7; }
+.sandi-form { display: flex; flex-direction: column; gap: 12px; min-width: min(360px, 80vw); }

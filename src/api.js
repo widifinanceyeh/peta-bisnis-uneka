@@ -1,4 +1,5 @@
 import { API_URL, TIMEOUT_MS } from './config';
+import { bacaToken, aksesHabis } from './akses';
 
 /**
  * Lapisan permintaan ke Apps Script.
@@ -64,6 +65,12 @@ async function bacaBalasan(res) {
   }
 
   if (!json || typeof json !== 'object') throw new Error('Balasan server tidak dikenali.');
+  if (json.kode === 'AKSES') {          // v5.23: token ditolak server; halaman masuk ditampilkan
+    aksesHabis();
+    const g = new Error(json.message || 'Sesi berakhir. Silakan masuk lagi.');
+    g.akses = true;
+    throw g;
+  }
   if (json.success === false || json.ok === false) {
     throw new Error(json.message || 'Permintaan ditolak server.');
   }
@@ -122,6 +129,8 @@ export async function apiGet(action, params, opsi) {
   periksaUrl();
   const q = new URLSearchParams({ action, _: String(Date.now()) });
   if (params) Object.keys(params).forEach((k) => q.append(k, params[k]));
+  const token = bacaToken();                         // v5.23: setiap permintaan membawa token masuk
+  if (token && action !== 'ping') q.append('t', token);
   const url = API_URL + '?' + q.toString();
 
   let terakhir = null;
@@ -149,7 +158,7 @@ export async function apiPost(payload) {
         redirect: 'follow',
         cache: 'no-store',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(Object.assign({}, payload, { t: bacaToken() }))
       }),
       TIMEOUT_PERCOBAAN_MS
     );
@@ -198,6 +207,9 @@ async function simpanDenganCadanganAksi(payload, aksiGet) {
 
 export const api = {
   ping: () => apiGet('ping'),
+  // v5.23: akses satu pengguna (lihat Akses.gs).
+  login: (pengguna, sandi) => simpanDenganCadanganAksi({ action: 'login', pengguna, sandi }, 'login'),
+  gantiSandi: (lama, baru) => simpanDenganCadanganAksi({ action: 'gantiSandi', lama, baru }, 'gantiSandi'),
   init: (opsi) => apiGet('init', null, opsi),
   teks: () => apiGet('teks'),
   detail: (id) => apiGet('detail', { id }),

@@ -4,6 +4,8 @@ import './tambahan.css';
 import './naskah.css';
 import TopBar from './components/TopBar';
 import Toast from './components/Toast';
+import GantiSandi from './components/GantiSandi';
+import { keluar } from './akses';
 import DiagnosaPanel from './components/Diagnosa';
 import PetaPage from './pages/PetaPage';
 import EditorPage from './pages/EditorPage';
@@ -132,6 +134,7 @@ export default function App() {
   const [filter, setFilter] = useState(bacaFilterTersimpan);
   const [toast, setToast] = useState({ pesan: '', jenis: 'info' });
   const [bukaDiagnosa, setBukaDiagnosa] = useState(false);
+  const [bukaSandi, setBukaSandi] = useState(false);   // v5.23
   const [ringkas, setRingkas] = useState(() => {
     try { return window.localStorage.getItem(STORAGE_KEY.RINGKAS) !== '0'; } catch (e) { return true; }
   });
@@ -478,6 +481,8 @@ export default function App() {
         subJudul={item || halamanLain ? '' : String(cfg.app.SUB_JUDUL || '')}
         onSegarkan={onSegarkan}
         onDiagnosa={() => setBukaDiagnosa(true)}
+        onGantiSandi={() => setBukaSandi(true)}
+        onKeluar={() => sesudahSimpan(keluar)}
         sedangMuat={memuat || sedangRefresh}
         memperbarui={!!naskah.memperbarui}
         mundur={langkah > 0 ? () => window.history.back() : null}
@@ -576,6 +581,10 @@ export default function App() {
       )}
 
       {bukaDiagnosa ? <DiagnosaPanel onTutup={() => setBukaDiagnosa(false)} /> : null}
+      {bukaSandi ? (
+        <GantiSandi onTutup={() => setBukaSandi(false)}
+                    onSelesai={() => { setBukaSandi(false); setToast({ pesan: 'Sandi diganti. Perangkat lain perlu masuk ulang.', jenis: 'info' }); }} />
+      ) : null}
 
       <Toast
         pesan={toast.pesan}

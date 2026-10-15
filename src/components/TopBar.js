@@ -17,7 +17,7 @@ const Panah = ({ arah }) => (
   </svg>
 );
 
-export default function TopBar({ judul, subJudul, onSegarkan, onDiagnosa, sedangMuat, mundur, maju, menu, ruang, onRuang, memperbarui }) {
+export default function TopBar({ judul, subJudul, onSegarkan, onDiagnosa, onGantiSandi, onKeluar, sedangMuat, mundur, maju, menu, ruang, onRuang, memperbarui }) {
   const [lain, setLain] = useState(false);
   useEffect(() => {
     if (!lain) return undefined;
@@ -72,6 +72,8 @@ export default function TopBar({ judul, subJudul, onSegarkan, onDiagnosa, sedang
               <button type="button" role="menuitem" onClick={jalankan(onSegarkan)} disabled={sedangMuat}
                       title="Bersihkan cache server lalu baca ulang data terbaru dari sheet">Refresh data</button>
               {onDiagnosa ? <button type="button" role="menuitem" onClick={jalankan(onDiagnosa)} title="Periksa sambungan dan data">Diagnosa</button> : null}
+              {onGantiSandi ? <button type="button" role="menuitem" onClick={jalankan(onGantiSandi)}>Ganti sandi</button> : null}
+              {onKeluar ? <button type="button" role="menuitem" onClick={jalankan(onKeluar)} title="Keluar dan hapus salinan data di perangkat ini">Keluar</button> : null}
               <span className="versi">Versi {APP_VERSION}</span>
             </div>
           ) : null}
