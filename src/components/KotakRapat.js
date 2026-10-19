@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { simpanCatatanRapat } from '../naskah';
 import { STORAGE_KEY } from '../config';
 
@@ -6,14 +6,13 @@ import { STORAGE_KEY } from '../config';
  * v5.17: catatan rapat untuk satu ayat rancangan 2026 (tab 14-CATATAN-RAPAT).
  * Catatan bebas tanpa mengubah bunyi ayat; tampil terpisah dari Dasar perubahan agar selisih teks tetap bersih.
  * Tombol tindakan hanya muncul saat kursor di atas catatan (pada layar sentuh selalu tampil, tetapi redup).
- * Dibuka dari menu "⋯" pada ayat (buka = nomor permintaan; berubah = buka editor catatan baru).
+ * v5.24: tidak lagi dibuka dari menu "⋯". Daftar catatan dan tombol "+ catatan rapat" tampil langsung di bawah
+ * bunyi ayat, sehingga mencatat cukup satu klik. Ayat yang belum punya catatan hanya menampilkan tombolnya.
  */
-export default function KotakRapat({ ayat, daftar, buka, onGalat }) {
+export default function KotakRapat({ ayat, daftar, onGalat }) {
   const [edit, setEdit] = useState(null);            // null | {id?, teks}
   const [sibuk, setSibuk] = useState(false);
   const [pesan, setPesan] = useState('');
-  const awal = useRef(buka);
-  useEffect(() => { if (buka && buka !== awal.current) { setEdit({ teks: '' }); setPesan(''); } }, [buka]);
 
   const list = (daftar || []).filter((c) => c.status !== 'DIBATALKAN')
     .sort((a, b) => String(a.dibuat).localeCompare(String(b.dibuat)));
@@ -31,7 +30,11 @@ export default function KotakRapat({ ayat, daftar, buka, onGalat }) {
     if (ok) setEdit(null);
   };
 
-  if (!list.length && !edit) return null;
+  const tambah = (
+    <button type="button" className="cr-tambah" onClick={() => { setEdit({ teks: '' }); setPesan(''); }}
+            title="Tulis catatan rapat untuk ayat ini">+ catatan{list.length ? '' : ' rapat'}</button>
+  );
+  if (!list.length && !edit) return <div className="cr-kosong">{tambah}</div>;
   return (
     <div className="kotak-tanda kotak-rapat">
       <b>Catatan rapat</b>
@@ -64,6 +67,7 @@ export default function KotakRapat({ ayat, daftar, buka, onGalat }) {
           </div>
         </div>
       ) : null}
+      {!edit ? tambah : null}
       {pesan ? <div className="jj-pesan">{pesan}</div> : null}
     </div>
   );

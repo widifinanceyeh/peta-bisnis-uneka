@@ -231,8 +231,8 @@ ins { text-decoration: none; background: var(--hijau); border-bottom: 1px solid 
 .nk-cetak { margin-left: auto; padding: 4px 11px; font-size: 12px; }
 
 .jj-tabel { background: var(--putih); border: 1px solid var(--garis); border-radius: var(--r); box-shadow: var(--bayang); }
-.jj-kepala, .jj-baris { display: grid; grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr) 200px; }
-.jj-tengah .chip-status-tombol { white-space: normal; text-align: center; line-height: 1.25; }
+.jj-kepala, .jj-baris { display: grid; grid-template-columns: minmax(0, 1fr) 112px minmax(0, 1fr) 200px; }
+.jj-tengah .chip-status { white-space: normal; text-align: center; line-height: 1.25; }
 /* Mode rapat (v5): hanya bunyi 2026 dan dasar perubahan, huruf lebih besar. */
 .jj-rapat .jj-kepala, .jj-rapat .jj-baris { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); }
 .jj-rapat .jj-kiri, .jj-rapat .jj-tengah, .jj-rapat .jj-k25, .jj-rapat .jj-tengah-kepala { display: none; }
@@ -631,7 +631,7 @@ mark.tl-organ { background: var(--kuning); color: inherit; padding: 0 1px; }
   .rel-ciut .rel-atas > :not(.rel-tombol) { display: none !important; }
   .rel-ciut .nk-utama { max-width: none; }
   /* v5.5.1: mode lebar — kolom 2025 dan 2026 sama lebar, dasar perubahan tetap. */
-  .rel-ciut .jj-kerja .jj-kepala, .rel-ciut .jj-kerja .jj-baris { grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr) 200px; }
+  .rel-ciut .jj-kerja .jj-kepala, .rel-ciut .jj-kerja .jj-baris { grid-template-columns: minmax(0, 1fr) 112px minmax(0, 1fr) 200px; }
 }
 /* v5.5.1: tag temuan Telaah sebagai saringan. */
 .tag-klik { border: 1px solid transparent; cursor: pointer; font-family: inherit; line-height: 1.5; }
@@ -896,3 +896,21 @@ button.lencana-m-ada:hover { background: #e3e5ea; border-color: #9aa0ad; }
   body.cetak-rekap .rekap-cetak { position: absolute; left: 0; top: 0; width: 100%; }
   body.cetak-rekap .rekap-cetak .tautan { color: inherit; text-decoration: none; }
 }
+
+/* v5.24: kolom Jejak hanya dibaca — label status lalu satu centang Konfirmasi (Mode kerja). */
+.jj-ctg { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--navy); cursor: pointer; }
+.jj-ctg input { width: 14px; height: 14px; margin: 0; cursor: pointer; accent-color: var(--navy); }
+.jj-ctg input:disabled { cursor: progress; }
+.jj-ctg-k { font-size: 9.5px; color: var(--teks-redup); }
+.jj-ctg-k.jj-ctg-ok { color: var(--hijau-teks); font-weight: 700; }
+.jj-ctg-pesan { font: inherit; font-size: 9.5px; font-weight: 700; line-height: 1.3; text-align: center; color: var(--merah-teks);
+  background: transparent; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.jj-ctg-pesan:hover { color: var(--navy); }
+
+/* v5.24: catatan rapat tampil di bawah bunyi ayat, tidak lagi lewat menu "..." */
+.cr-kosong { margin-top: 7px; }
+.cr-tambah { font: inherit; font-size: 10.5px; color: var(--teks-redup); background: transparent;
+  border: 1px dashed rgba(30, 39, 97, 0.28); border-radius: 999px; padding: 2px 10px; cursor: pointer; white-space: nowrap; }
+.cr-tambah:hover, .cr-tambah:focus-visible { color: var(--navy); border-color: var(--navy); border-style: solid; background: rgba(30, 39, 97, 0.04); }
+.kotak-rapat .cr-tambah { margin-top: 5px; }
+@media print { .cr-tambah { display: none !important; } }

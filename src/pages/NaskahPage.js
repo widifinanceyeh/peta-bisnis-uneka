@@ -543,7 +543,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
           <div className={'jj-tabel' + (kerja ? ' jj-kerja' : ' jj-rapat')}>
             <div className="jj-kepala">
               <div className="jj-k25">{cfg.labelLama || 'STATUTA 2025'}</div>
-              <div className="jj-tengah-kepala">JEJAK</div>
+              <div className="jj-tengah-kepala">JEJAK PERUBAHAN</div>
               <div>{cfg.labelBaru || 'RANCANGAN 2026'}</div>
               <div>DASAR PERUBAHAN AYAT</div>
             </div>

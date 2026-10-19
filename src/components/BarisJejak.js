@@ -17,6 +17,9 @@ import { bacaDraf, tulisDraf, hapusDraf } from '../hooks/useDraf';
  * di bawah bunyi ayat 2026 tampil usulan redaksi, penanda Monev, rujukan silang patah, dugaan ayat mirip,
  * sorotan tugas YEH/UNEKA, dan pita peta 2026.
  * Panel sunting jejak dan penulisan usulan redaksi hanya pada Mode kerja.
+ * v5.24: kolom Jejak hanya dibaca — status sebagai label, ditambah satu centang Konfirmasi (Mode kerja).
+ * Panel enam isian pindah ke menu ⋯ › “Sunting jejak…”. Catatan rapat tidak lagi lewat ⋯: daftar dan tombol
+ * “+ catatan rapat” tampil langsung di bawah bunyi ayat pada kolom rancangan 2026.
  * v5.16: ayat yang dipindah ke pasal lain tampil sebagai kartu bayangan ungu di pasal asal (bukan lagi bagian
  * pasal itu); di pasal tujuan ayat tampil biasa dengan penanda hijau asalnya. Penentunya letak pasangan, bukan status.
  */
@@ -32,8 +35,7 @@ export default function BarisJejak({
   const monev = pn ? pn.monev : [];
   const keluar = !!(kanan && kanan.pasal !== pasal);           // ayat 2026 kini berada di pasal lain
   const masuk = !!(kiri && kanan && kiri.pasal !== pasal && kanan.pasal === pasal);   // ayat 2026 berasal dari pasal lain
-  // v5.17: tindakan per ayat dikumpulkan di menu "⋯" (catat rapat, usulkan redaksi) agar baris tetap bersih.
-  const [mintaCatat, setMintaCatat] = useState(0);
+  // v5.24: menu "⋯" per ayat menyisakan tindakan yang jarang: usulan redaksi dan sunting jejak.
   const [mintaRedaksi, setMintaRedaksi] = useState(0);
   const adaUsulan = !!(redaksi && redaksi.aktif);
   // v5.19: ayat tanpa jejak dapat dibuatkan jejak langsung dari web; kode jejak dibuat otomatis.
@@ -65,11 +67,9 @@ export default function BarisJejak({
 
       <div className="jj-sel jj-tengah">
         {jejak ? (
-          <button type="button" className="chip-status chip-status-tombol" style={{ background: warnaSt || undefined }}
-                  onClick={() => { if (!bisaSunting) return; if (terbuka) onTutup(); else onBuka(); }} aria-expanded={terbuka}
-                  title={bisaSunting ? 'Ubah status jejak' : 'Status jejak'}>
-            {jejak.status || 'tanpa status'}{bisaSunting ? <span className="jj-panah"> ▾</span> : null}
-          </button>
+          <span className="chip-status" style={{ background: warnaSt || undefined }} title="Jejak perubahan ayat ini">
+            {jejak.status || 'tanpa status'}
+          </span>
         ) : bisaSunting && onBuatJejak && (kanan ? kanan.pasal === pasal : kiri && kiri.pasal === pasal) ? (
           <button type="button" className="jj-buat" onClick={buat} disabled={membuat}
                   title={kanan ? 'Buat baris jejak untuk ayat ini. Status awal BARU; pasangan Statuta 2025 dan alasan dapat diisi sesudahnya.'
@@ -77,6 +77,9 @@ export default function BarisJejak({
             {membuat ? 'membuat…' : '+ Buat jejak'}
           </button>
         ) : <span className="jj-belum">belum ada jejak</span>}
+        {jejak && bisaSunting ? (
+          <CentangKonfirmasi jejak={jejak} cfg={cfg} onGalat={onGalat} onSunting={() => { if (terbuka) onTutup(); else onBuka(); }} />
+        ) : null}
         {jejak && !jejak.dikonfirmasi ? <span className="tanda-usulan">usulan</span> : null}
         {jejak && jejak.dikonfirmasi ? <span className="tanda-konfirmasi">✓ dikonfirmasi</span> : null}
         {wajib ? <span className="tanda-awas">perlu alasan</span> : null}
@@ -99,8 +102,9 @@ export default function BarisJejak({
           <>
             {kanan.pasal === pasal ? (
               <MenuTitik kelas="jj-menu" label="Tindakan untuk ayat ini" butir={[
-                { label: 'Catat rapat', keterangan: 'catatan tanpa mengubah bunyi', onPilih: () => setMintaCatat((x) => x + 1) },
-                { label: 'Usulkan redaksi', keterangan: 'usulan bunyi baru', sembunyi: !bisaSunting || adaUsulan, onPilih: () => setMintaRedaksi((x) => x + 1) }
+                { label: 'Usulkan redaksi', keterangan: 'usulan bunyi baru', sembunyi: !bisaSunting || adaUsulan, onPilih: () => setMintaRedaksi((x) => x + 1) },
+                { label: 'Sunting jejak…', keterangan: 'status, pasangan ayat, alasan', sembunyi: !bisaSunting || !jejak,
+                  onPilih: () => { if (terbuka) onTutup(); else onBuka(); } }
               ]} />
             ) : null}
             {sejak ? <span className={'jj-sejak jj-sejak-' + sejak.jenis} title={'Dibanding versi ' + sejak.label}>{sejak.jenis === 'baru' ? 'baru' : 'berubah'} sejak {sejak.label}</span> : null}
@@ -112,7 +116,7 @@ export default function BarisJejak({
             {kanan.pasal === pasal ? (
               <KotakRedaksi ayat={kanan} redaksi={redaksi} kerja={bisaSunting} monev={monev} onGalat={onGalat} bukaSunting={mintaRedaksi} />
             ) : null}
-            {kanan.pasal === pasal ? <KotakRapat ayat={kanan} daftar={rapat} buka={mintaCatat} onGalat={onGalat} /> : null}
+            {kanan.pasal === pasal ? <KotakRapat ayat={kanan} daftar={rapat} onGalat={onGalat} /> : null}
             {monev.length ? (
               <div className="kotak-tanda kotak-monev">
                 <b>Catatan asesor Monev</b>
@@ -206,6 +210,63 @@ export function warnaStatus(cfg, status) {
 
 function perluAlasan(cfg, status) {
   return (cfg.wajibAlasan || []).some((w) => String(w).toUpperCase() === String(status || '').toUpperCase());
+}
+
+/* ================================================================ CENTANG KONFIRMASI */
+
+/**
+ * v5.24: konfirmasi jejak langsung dari kolom Jejak, satu centang, tanpa membuka panel.
+ * Hanya medan "dikonfirmasi" yang dikirim. Status dan alasan tetap disunting lewat menu "⋯" › Sunting jejak.
+ * Penjaga lama dipertahankan: status kosong atau alasan wajib yang masih kosong tidak dapat dikonfirmasi;
+ * pesannya dapat diklik untuk membuka panel sunting di tempat yang benar.
+ */
+function CentangKonfirmasi({ jejak, cfg, onGalat, onSunting }) {
+  const [keadaan, setKeadaan] = useState('diam');   // diam | menyimpan | tersimpan | galat
+  const [pesan, setPesan] = useState('');
+  const hidup = useRef(true);
+  const jam = useRef(null);
+  useEffect(() => () => { hidup.current = false; window.clearTimeout(jam.current); }, []);
+
+  const ubah = async (nilai) => {
+    if (nilai) {
+      if (!String(jejak.status || '').trim()) { setPesan('Pilih status lebih dulu'); return; }
+      if (perluAlasan(cfg, jejak.status) && !String(jejak.alasan || '').trim()) { setPesan('Isi alasan lebih dulu'); return; }
+    }
+    setPesan('');
+    setKeadaan('menyimpan');
+    const muatan = { idJejak: jejak.id, dikonfirmasi: nilai };
+    const o = olehTersimpan();
+    if (o) muatan.oleh = o;
+    try {
+      await simpanJejak(muatan);
+      if (!hidup.current) return;
+      setKeadaan('tersimpan');
+      jam.current = window.setTimeout(() => { if (hidup.current) setKeadaan('diam'); }, 1800);
+    } catch (e) {
+      const m = (e && e.message) || String(e);
+      if (hidup.current) { setKeadaan('galat'); setPesan('Gagal disimpan'); }
+      if (onGalat) onGalat(m);
+    }
+  };
+
+  return (
+    <>
+      <label className="jj-ctg" title={jejak.dikonfirmasi ? 'Hapus konfirmasi jejak ini' : 'Tandai jejak ini sudah dikonfirmasi'}>
+        <input type="checkbox" checked={!!jejak.dikonfirmasi} disabled={keadaan === 'menyimpan'}
+               onChange={(e) => ubah(e.target.checked)} />
+        <span>Konfirmasi</span>
+      </label>
+      {keadaan === 'menyimpan' ? <span className="jj-ctg-k">menyimpan…</span> : null}
+      {keadaan === 'tersimpan' ? <span className="jj-ctg-k jj-ctg-ok">tersimpan</span> : null}
+      {pesan ? (
+        <button type="button" className="jj-ctg-pesan" onClick={onSunting} title="Buka panel sunting jejak">{pesan}</button>
+      ) : null}
+    </>
+  );
+}
+
+function olehTersimpan() {
+  try { return window.localStorage.getItem(STORAGE_KEY.OLEH) || ''; } catch (e) { return ''; }
 }
 
 /* ================================================================ PANEL SUNTING */
