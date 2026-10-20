@@ -1,5 +1,5 @@
 import { API_URL, TIMEOUT_MS } from './config';
-import { bacaToken, aksesHabis } from './akses';
+import { bacaToken, aksesHabis, tokenBerlaku } from './akses';
 
 /**
  * Lapisan permintaan ke Apps Script.
@@ -65,10 +65,16 @@ async function bacaBalasan(res) {
   }
 
   if (!json || typeof json !== 'object') throw new Error('Balasan server tidak dikenali.');
-  if (json.kode === 'AKSES') {          // v5.23: token ditolak server; halaman masuk ditampilkan
-    aksesHabis();
-    const g = new Error(json.message || 'Sesi berakhir. Silakan masuk lagi.');
+  if (json.kode === 'AKSES') {
+    // v5.26: token hanya dibuang bila memang sudah lewat waktu. Sebelumnya satu permintaan yang
+    // salah bentuk cukup untuk menghapus sesi yang masih sah dan mengusir pengguna ke halaman masuk.
+    const masihSah = tokenBerlaku();
+    if (!masihSah) aksesHabis();
+    const g = new Error(masihSah
+      ? 'Permintaan ini ditolak server, tetapi sesi Anda masih berlaku. Coba lagi; bila terus berulang, laporkan bagian ini.'
+      : (json.message || 'Sesi berakhir. Silakan masuk lagi.'));
     g.akses = true;
+    g.sesiMasihSah = masihSah;
     throw g;
   }
   if (json.success === false || json.ok === false) {
@@ -229,7 +235,9 @@ export const api = {
   // Telaah (v5, lihat Telaah.gs).
   naskahTelaah: () => apiGet('naskahTelaah'),
   naskahYatim: () => apiGet('naskahYatim'),
-  dasarHukum: (t) => apiGet('dasarHukum', { t }),
+  // v5.26: kutipan dikirim sebagai 'kutipan'. Nama 't' dipakai token masuk, sehingga alamatnya
+  // memuat 't' dua kali dan pemeriksaan akses membaca kutipan sebagai token lalu menolaknya.
+  dasarHukum: (kutipan) => apiGet('dasarHukum', { kutipan }),
   dasarHukumPasal: (pasal) => apiGet('dasarHukumPasal', { pasal }),   // v5.2: seluruh kutipan satu pasal
   // v5.3: butir Permen (04C), muatan di luar peta, hasil rapat per urusan.
   naskahKepatuhan: () => apiGet('naskahKepatuhan'),

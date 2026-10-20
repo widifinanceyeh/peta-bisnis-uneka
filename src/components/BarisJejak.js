@@ -20,6 +20,8 @@ import { bacaDraf, tulisDraf, hapusDraf } from '../hooks/useDraf';
  * v5.24: kolom Jejak hanya dibaca — status sebagai label, ditambah satu centang Konfirmasi (Mode kerja).
  * v5.25: kolom Jejak dilebur ke kolom Dasar perubahan ayat sebagai baris atas sel, agar kedua kolom naskah
  * selebar mungkin. Letaknya tetap sama di setiap baris sehingga tetap dapat disusuri dari atas ke bawah.
+ * v5.26: Mode rapat menampilkan centang Konfirmasi saja, rata kanan — keputusan rapat dicatat saat itu juga,
+ * tanpa berpindah ke Mode kerja yang memunculkan kolom Statuta 2025 di hadapan forum.
  * Panel enam isian pindah ke menu ⋯ › “Sunting jejak…”. Catatan rapat tidak lagi lewat ⋯: daftar dan tombol
  * “+ catatan rapat” tampil langsung di bawah bunyi ayat pada kolom rancangan 2026.
  * v5.16: ayat yang dipindah ke pasal lain tampil sebagai kartu bayangan ungu di pasal asal (bukan lagi bagian
@@ -160,6 +162,10 @@ export default function BarisJejak({
               {jejak && bacaDraf('jejak:' + jejak.id) !== undefined ? <span className="tanda-awas" title="Buka untuk menyimpan ulang">belum tersimpan</span> : null}
             </span>
           </div>
+        ) : jejak ? (
+          <div className="jj-jejak-atas jj-jejak-rapat">
+            <CentangKonfirmasi jejak={jejak} cfg={cfg} onGalat={onGalat} onSunting={null} />
+          </div>
         ) : null}
         {kanan && pertama ? (dasar && dasar.length
           ? <ul className="daftar-rapat">{dasar.map((b, i) => <li key={i}><TeksRujukan teks={b} onDh={onDh} /></li>)}</ul>
@@ -263,8 +269,9 @@ function CentangKonfirmasi({ jejak, cfg, onGalat, onSunting }) {
       </label>
       {keadaan === 'menyimpan' ? <span className="jj-ctg-k">menyimpan…</span> : null}
       {keadaan === 'tersimpan' ? <span className="jj-ctg-k jj-ctg-ok">tersimpan</span> : null}
-      {pesan ? (
-        <button type="button" className="jj-ctg-pesan" onClick={onSunting} title="Buka panel sunting jejak">{pesan}</button>
+      {pesan ? (onSunting
+        ? <button type="button" className="jj-ctg-pesan" onClick={onSunting} title="Buka panel sunting jejak">{pesan}</button>
+        : <span className="jj-ctg-pesan jj-ctg-diam">{pesan}</span>
       ) : null}
     </>
   );

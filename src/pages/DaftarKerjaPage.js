@@ -7,6 +7,7 @@ import { RelAtas, TombolLaci } from '../components/TombolRel';
 import { Sakelar, TandaSelesai } from '../components/Sakelar';
 import TautanDraf from '../components/TautanDraf';
 import useDraf from '../hooks/useDraf';
+import KepingAlasan from '../components/KepingAlasan';
 
 /**
  * Halaman Periksa (v5.4, hanya ruang Kerja) — pengganti Daftar kerja.
@@ -202,6 +203,8 @@ function Kembar({ terbuka, diputus, belum, setBelum, onBukaPasal }) {
     }
   };
   const semua = terbuka.map((m) => Object.assign({ selesai: false }, m)).concat(belum ? [] : diputus.map((m) => Object.assign({ selesai: true }, m)));
+  // v5.26: keping alasan diambil dari pasangan yang sudah diputus, termasuk yang sedang disembunyikan sakelar.
+  const alasanKembar = (diputus || []).map((m) => m.putusan && m.putusan.alasan);
   return (
     <>
       <Sakelar semua={!belum} onSemua={(v) => setBelum(!v)} nSemua={terbuka.length + diputus.length} nBelum={terbuka.length} />
@@ -226,6 +229,8 @@ function Kembar({ terbuka, diputus, belum, setBelum, onBukaPasal }) {
                   <span className="kecil">Kemiripan {Math.round((m.s || 0) * 100)}%</span>
                   <input className="inp" placeholder="Alasan bukan kembar (wajib)" value={alasan[k] || ''}
                          onChange={(e) => { const v = e.target.value; setAlasan((d) => Object.assign({}, d, { [k]: v })); }} />
+                  <KepingAlasan daftar={alasanKembar} nilai={alasan[k] || ''}
+                                onPilih={(t) => setAlasan((d) => Object.assign({}, d, { [k]: t }))} />
                   <button type="button" className="tbl" onClick={() => putus(m)}>{/^Gagal/.test(pesan[k] || '') ? 'Simpan ulang' : 'Bukan kembar'}</button>
                   {pesan[k] ? <span className="jj-pesan">{pesan[k]}</span> : null}
                 </div>

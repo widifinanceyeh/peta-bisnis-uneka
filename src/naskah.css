@@ -11,7 +11,7 @@
    - kepala: judul 15px tebal navy + anak judul 12px redup, tombol × 30px di kanan, garis bawah;
    - isi: jarak 16px 18px, bergulir sendiri bila panjang;
    - kaki: tombol rata kanan, sekunder di kiri tombol utama, garis atas;
-   - lebar tengah 560px (lebar 760px), lembar samping 460px; ponsel: penuh lebar. */
+   - lebar tengah 560px (lebar 760px), lembar samping 580px; ponsel: penuh lebar. */
 
 body.modal-buka .app { overflow: hidden; }
 
@@ -32,7 +32,7 @@ body.modal-buka .app { overflow: hidden; }
 }
 .modal-lebar { width: min(760px, 100%); }
 .modal-samping {
-  width: min(460px, 100%); max-height: none; height: 100%;
+  width: min(580px, 100%); max-height: none; height: 100%;   /* v5.26: dasar hukum memuat kalimat panjang */
   border-radius: 0; border-width: 0 0 0 1px;
   animation: lembar-geser 0.16s ease-out;
 }
@@ -231,7 +231,7 @@ ins { text-decoration: none; background: var(--hijau); border-bottom: 1px solid 
 .nk-cetak { margin-left: auto; padding: 4px 11px; font-size: 12px; }
 
 .jj-tabel { background: var(--putih); border: 1px solid var(--garis); border-radius: var(--r); box-shadow: var(--bayang); }
-.jj-kepala, .jj-baris { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 200px; }
+.jj-kepala, .jj-baris { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 260px; }
 /* Mode rapat (v5): hanya bunyi 2026 dan dasar perubahan, huruf lebih besar. */
 .jj-rapat .jj-kepala, .jj-rapat .jj-baris { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); }
 .jj-rapat .jj-kiri, .jj-rapat .jj-k25 { display: none; }
@@ -624,7 +624,7 @@ mark.tl-organ { background: var(--kuning); color: inherit; padding: 0 1px; }
   .rel-ciut .rel-atas > :not(.rel-tombol) { display: none !important; }
   .rel-ciut .nk-utama { max-width: none; }
   /* v5.5.1: mode lebar — kolom 2025 dan 2026 sama lebar, dasar perubahan tetap. */
-  .rel-ciut .jj-kerja .jj-kepala, .rel-ciut .jj-kerja .jj-baris { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 200px; }
+  .rel-ciut .jj-kerja .jj-kepala, .rel-ciut .jj-kerja .jj-baris { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 260px; }
 }
 /* v5.5.1: tag temuan Telaah sebagai saringan. */
 .tag-klik { border: 1px solid transparent; cursor: pointer; font-family: inherit; line-height: 1.5; }
@@ -823,15 +823,18 @@ button.lencana-m-ada:hover { background: #e3e5ea; border-color: #9aa0ad; }
 .jj-baris:hover .jj-menu .mt-tombol, .jj-menu .mt-tombol:focus-visible, .jj-menu .mt-tombol.aktif { opacity: 1; }
 @media (hover: none) { .jj-menu .mt-tombol { opacity: .55; } }
 
-.kotak-rapat { border: 1px solid #ecd28f; background: #fffaeb; color: var(--teks); }
-.kotak-rapat > b { color: #8a5a00; display: block; margin-bottom: 2px; }
+/* v5.26: catatan rapat memakai biru-toska. Sebelumnya kuning, praktis sewarna dengan kotak peringatan
+   “rujukan silang patah” dan “dugaan ayat kembar”, sehingga terbaca sebagai temuan mesin, bukan catatan orang. */
+.kotak-rapat { border: 1px solid #a9d8e2; border-left: 3px solid #0e7490; background: #eef8fa; color: var(--teks); }
+.kotak-rapat > b { color: #0e7490; display: block; margin-bottom: 2px; }
+.kotak-rapat > b::before { content: '\270e'; margin-right: 5px; font-weight: 400; }
 .cr-butir { padding: 4px 0; }
 .cr-butir + .cr-butir { border-top: 1px dashed #ecd28f; }
 .cr-teks { white-space: pre-wrap; }
 .cr-selesai .cr-teks { color: var(--teks-redup); }
 .cr-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 2px; font-size: 11px; color: var(--teks-redup); }
 .cr-st { font-weight: 700; border-radius: 100px; padding: 0 7px; }
-.cr-st-buka { color: #8a5a00; background: #fdeec4; }
+.cr-st-buka { color: #0b5f74; background: #d7eef4; }
 .cr-st-selesai { color: #065f46; background: #d1fae5; }
 .cr-aksi { display: inline-flex; gap: 10px; margin-left: auto; opacity: 0; transition: opacity .12s; }
 .cr-butir:hover .cr-aksi, .cr-aksi:focus-within { opacity: 1; }
@@ -920,3 +923,22 @@ button.lencana-m-ada:hover { background: #e3e5ea; border-color: #9aa0ad; }
 @media (max-width: 760px) {
   .jj-jejak-atas { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 }
+
+/* v5.26: Mode rapat — centang Konfirmasi saja, rata kanan, jauh dari badan naskah yang ditunjuk saat rapat. */
+.jj-rapat .jj-jejak-atas, .jj-jejak-rapat {
+  flex-direction: row; justify-content: flex-end; align-items: center;
+  margin: 0 0 6px; padding-bottom: 0; border-bottom: 0;
+}
+.jj-ctg-pesan.jj-ctg-diam { text-decoration: none; cursor: default; }
+
+/* v5.26: keping alasan yang sudah pernah dipakai; sekali klik mengisi kotak alasan. */
+.ka { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 0 0 5px; }
+.ka-label { font-size: 9.5px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: var(--teks-redup); }
+.ka-keping {
+  font-family: var(--font); font-size: 11px; line-height: 1.35; text-align: left; color: var(--navy);
+  background: #f6f8ff; border: 1px solid #d7dcf0; border-radius: 100px; padding: 2px 10px; cursor: pointer;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ka-keping:hover, .ka-keping:focus-visible { border-color: var(--navy); background: var(--ice); }
+.ka-keping.aktif { border-color: var(--navy); background: var(--ice); font-weight: 600; }
+@media print { .ka { display: none !important; } }

@@ -11,6 +11,7 @@ import { STORAGE_KEY } from '../config';
 import { RelAtas, TombolLaci } from '../components/TombolRel';
 import TombolTautan from '../components/TombolTautan';
 import useDraf from '../hooks/useDraf';
+import KepingAlasan from '../components/KepingAlasan';
 import { Sakelar, TandaSelesai } from '../components/Sakelar';
 
 /**
@@ -452,6 +453,8 @@ export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
   if (hapus) {
     const ok = (x) => !!(x.jejak && x.jejak.dikonfirmasi);
     const isi = L.baris.filter((x) => x.j === 'dihapus' && (!belum || !ok(x)));
+    // v5.26: keping alasan diambil dari ayat yang sudah dikonfirmasi pada daftar ini sendiri.
+    const alasanHapus = L.baris.filter((x) => x.j === 'dihapus' && ok(x)).map((x) => x.jejak.alasan);
     // v5.12: kotak alasan terisi dari alasan yang sudah tersimpan di tab 07, selama belum diketik ulang.
     const isiAlasan = (x) => (draf[x.id] && draf[x.id].alasan !== undefined ? draf[x.id].alasan : ((x.jejak && x.jejak.alasan) || ''));
     const setuju = async (x) => {
@@ -478,6 +481,7 @@ export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
                     ) : (
                       <div className="tl-putus">
                         <TandaSelesai ok={false} />
+                        <KepingAlasan daftar={alasanHapus} nilai={isiAlasan(x)} onPilih={(t) => set(x.id, { alasan: t })} />
                         <textarea className="inp" rows={2} placeholder="Alasan setuju dihapus (wajib)" value={isiAlasan(x)} onChange={(e) => set(x.id, { alasan: e.target.value })} />
                         <div className="tl-aksi">
                           <button type="button" className="tbl" onClick={() => setuju(x)}>{/^Gagal/.test(pesan[x.id] || '') ? 'Simpan ulang' : 'Setuju dihapus'}</button>
@@ -505,6 +509,8 @@ export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
   });
   grup.forEach((g) => { g.diputus = g.baris.every((x) => x.pu); g.pu = g.baris.map((x) => x.pu).filter(Boolean)[0] || null; });
   const tampil = grup.filter((g) => !belum || !g.diputus);
+  // v5.26: keping alasan diambil dari pasal yang sudah diputus pada daftar ini sendiri.
+  const alasanPutusan = grup.filter((g) => g.pu).map((g) => g.pu.alasan);
   const simpan = async (g) => {
     const d = draf[g.pasal] || {};
     if (!d.putusan) { tulisPesan(g.pasal, 'Pilih putusan.'); return; }
@@ -555,6 +561,7 @@ export function MuatanLuar({ n, urusan, onBukaPasal, onGalat, jenis }) {
                                 {(urusan || []).map((u) => <option key={u.id} value={u.id}>{u.id} · {u.urusan}</option>)}
                               </select>
                             ) : null}
+                            <KepingAlasan daftar={alasanPutusan} nilai={d.alasan || ''} onPilih={(t) => set(g.pasal, { alasan: t })} />
                             <textarea className="inp" rows={2} placeholder="Alasan (wajib)" value={d.alasan || ''} onChange={(e) => set(g.pasal, { alasan: e.target.value })} />
                             <div className="tl-aksi">
                               <button type="button" className="tbl" onClick={() => simpan(g)}>{/^Gagal/.test(pesan[g.pasal] || '') ? 'Simpan ulang' : 'Simpan'}</button>
