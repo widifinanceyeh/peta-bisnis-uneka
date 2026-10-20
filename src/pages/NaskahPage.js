@@ -23,11 +23,15 @@ const BATAS_RINGKAS = 6;
  * menjadi pilihan saringan; titik warna, lencana, dan legenda diganti satu penanda "perlu tindakan" beralasan.
  * Ruang Rapat/Kerja diatur sakelar di bilah atas.
  * Daftar pasal (kiri) dan naskah (kanan) digulir sendiri-sendiri; topbar dan kepala pasal tetap terlihat.
- * Saat naskah digulir, kepala pasal diringkas menjadi satu baris (Bab · Pasal · judul).
+ * v5.25: kepala pasal tidak lagi diringkas sendiri saat digulir. Peringkasan otomatis membuat blok sumber pasal
+ * lenyap di tengah gerakan menggulir — sasaran gulirnya hilang dan layar berkedip. Peringkasan kini hanya lewat
+ * tombol “ciutkan catatan pasal”, yang keadaannya sudah diingat per perangkat.
  *
  * Mode rapat  : bunyi ayat 2026 dan dasar perubahan ayat saja, huruf lebih besar — untuk dibaca bersama Pimpinan.
  *               Usulan redaksi yang masih terbuka ikut tampil (semula → menjadi, dan alasannya).
- * Mode kerja  : Statuta 2025 · Jejak · Rancangan 2026 · Dasar perubahan ayat; jejak dapat disunting,
+ * Mode kerja  : Statuta 2025 · Rancangan 2026 · Dasar perubahan ayat; jejak perubahan (status dan centang
+ *               Konfirmasi) berada di baris atas kolom Dasar perubahan, bukan kolom tersendiri — v5.25,
+ *               agar kedua kolom naskah selebar mungkin. Usulan redaksi dapat ditulis dan diterapkan ke Google Doc.
  *               usulan redaksi dapat ditulis dan diterapkan ke Google Doc.
  * Kepala pasal (garis besar perubahan, sumber, dasar hukum) menempel di atas saat digulir.
  * Di bawah ayat: catatan asesor Monev, sorotan tugas YEH/UNEKA, rujukan silang patah, dugaan ayat mirip,
@@ -79,22 +83,23 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
   const [labelBanding, setLabelBanding] = useState(() => bacaLokal(KUNCI_BANDING, ''));
   const [banding, setBanding] = useState(null);
   const [pesanAlat, setPesanAlat] = useState('');
-  const [digulir, setDigulir] = useState(false);
-  const [tahan, setTahan] = useState(false);
   const gulir = useRef(null);
   const kepalaRef = useRef(null);
   // Tinggi kepala pasal dipakai sebagai posisi beku judul kolom tabel (--kepala-h).
   useEffect(() => {
     const el = kepalaRef.current, g = gulir.current;
     if (!el || !g || typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(() => { g.style.setProperty('--kepala-h', el.offsetHeight + 'px'); });
+    // v5.25: dipasang sekali saja. Sebelumnya efek ini tanpa daftar kebergantungan, sehingga dipasang ulang
+    // pada setiap render dan menulis ulang --kepala-h berkali-kali selama menggulir.
+    let akhir = '';
+    const ro = new ResizeObserver(() => {
+      const t = el.offsetHeight + 'px';
+      if (t === akhir) return;                 // tulis hanya bila tingginya benar-benar berubah
+      akhir = t;
+      g.style.setProperty('--kepala-h', t);
+    });
     ro.observe(el);
     return () => ro.disconnect();
-  });
-  const onGulir = useCallback((e) => {
-    // Ambang ganda: diringkas sesudah 80px, dibuka lagi hanya bila kembali ke puncak (menghindari kedip).
-    const st = e.currentTarget.scrollTop;
-    setDigulir((x) => (x ? st > 10 : st > 80));
   }, []);
   useEffect(() => langganNaskah(setN), []);
   useEffect(() => { muatInitNaskah().catch(() => {}); muatTelaah().catch(() => {}); }, []);
@@ -125,8 +130,6 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
     setGalatBab('');
     muatBab(info.bab).catch((e) => setGalatBab((e && e.message) || String(e)));
     if (gulir.current) gulir.current.scrollTop = 0;
-    setDigulir(false);
-    setTahan(false);
     // Pasal yang sedang dibuka ikut tampak pada daftar kiri.
     window.setTimeout(() => {
       const el = document.querySelector('.nk-item.aktif');
@@ -349,7 +352,6 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
   const monevBebas = (adaPasal(pasal) && monevPsl[pasal]) || [];
   const nMonev = (data ? data.ayat26.reduce((s, a) => s + ((penanda[a.id] && penanda[a.id].monev.length) || 0), 0) : 0) + monevBebas.length;
   const nMonevAda = data ? data.ayat26.reduce((s, a) => s + ((penanda[a.id] && penanda[a.id].monevAda.length) || 0), 0) : 0;
-  const ringkas = digulir && !tahan;
   const hukum = data ? (data.catatan.hukumUrai || String(data.catatan.hukum || '').split('\n').filter(Boolean).map((t) => ({ t, q: t }))) : [];
   const nRedaksi = data ? (data.redaksi || []).filter((r) => r.status === 'USULAN').length : 0;
   const perlu = [];
@@ -420,23 +422,23 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
       </aside>
       <TombolLaci label="Daftar pasal" />
 
-      <div className="nk-gulir" ref={gulir} onScroll={onGulir}>
+      <div className="nk-gulir" ref={gulir}>
       <main className={'nk-utama' + (kerja ? '' : ' nk-rapat')}>
         <select className="inp nk-pilih-sempit" value={adaPasal(pasal) ? pasal : ''} onChange={(e) => onPilihPasal(Number(e.target.value))}
                 aria-label="Pilih pasal">
           {daftar.map((d) => <option key={d.pasal} value={d.pasal}>{berubah.has(d.pasal) ? '● ' : ''}{d.pasal === 0 ? 'Pembukaan' : 'Pasal ' + d.pasal + ' · ' + d.judul}</option>)}
         </select>
 
-        <div ref={kepalaRef} className={'nk-kepala5' + (ciut ? ' ciut' : '') + (ringkas ? ' ringkas' : '')}>
+        <div ref={kepalaRef} className={'nk-kepala5' + (ciut ? ' ciut' : '')}>
           <div className="rincian-no">{info ? info.bab : ''}{judulBab ? ' · ' + judulBab : ''}
-            {babLama.length && !ringkas ? (
+            {babLama.length ? (
               <span className="nk-lama" title="Judul BAB pada Statuta 2025">{' '}Statuta 2025: {babLama.map((x, i) => (
                 <React.Fragment key={x.bab}>{i ? '; ' : ''}<s>{x.bab} · {x.judulBab}</s></React.Fragment>))}</span>
             ) : null}
           </div>
           <div className="nk-judul-baris">
             <h2 className="nk-judul">{pasal === 0 ? 'Pembukaan' : 'Pasal ' + pasal + (info && info.judul ? ' · ' + info.judul : '')}</h2>
-            {judulLamaBeda && !ringkas ? (
+            {judulLamaBeda ? (
               <span className="nk-lama" title="Judul pasal pada Statuta 2025">Statuta 2025: {namaPasal(asal.pasal)}
                 {asal.judul ? <> · <s>{asal.judul}</s></> : ' (tanpa judul)'}</span>
             ) : null}
@@ -449,7 +451,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
               <button type="button" className="tbl tbl-ringan" onClick={() => pindah(1)} disabled={posisi >= daftar.length - 1} aria-label="Pasal berikutnya">›</button>
             </div>
           </div>
-          {monevBebas.length && !ringkas ? (
+          {monevBebas.length ? (
             <div className="nk-monev-pasal">
               {monevBebas.map((m) => (
                 <div key={m.butir}><b>Monev butir {m.butir}</b> · {m.alamat} — ditagih: {m.dokumen}. Berita Acara hanya menyebut pasal,
@@ -457,7 +459,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
               ))}
             </div>
           ) : null}
-          {data && !ciut && !ringkas ? (
+          {data && !ciut ? (
             <div className="nk-gb">
               <div>
                 <div className="blok-label">GARIS BESAR PERUBAHAN PASAL</div>
@@ -491,13 +493,9 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
               </div>
             </div>
           ) : null}
-          {ringkas ? (
-            <button type="button" className="nk-lipat" onClick={() => { setTahan(true); if (ciut) setCiut(false); }}>▾ tampilkan catatan pasal</button>
-          ) : (
-            <button type="button" className="nk-lipat" onClick={() => { setCiut(!ciut); if (tahan) setTahan(false); }}>
-              {ciut ? '▾ tampilkan catatan pasal' : '▴ ciutkan catatan pasal'}
-            </button>
-          )}
+          <button type="button" className="nk-lipat" onClick={() => setCiut(!ciut)}>
+            {ciut ? '▾ tampilkan catatan pasal' : '▴ ciutkan catatan pasal'}
+          </button>
 
         {data ? (
           <div className="nk-jenis" role="group" aria-label="Saring jenis perubahan">
@@ -543,9 +541,8 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
           <div className={'jj-tabel' + (kerja ? ' jj-kerja' : ' jj-rapat')}>
             <div className="jj-kepala">
               <div className="jj-k25">{cfg.labelLama || 'STATUTA 2025'}</div>
-              <div className="jj-tengah-kepala">JEJAK PERUBAHAN</div>
               <div>{cfg.labelBaru || 'RANCANGAN 2026'}</div>
-              <div>DASAR PERUBAHAN AYAT</div>
+              <div>{kerja ? 'JEJAK · DASAR PERUBAHAN AYAT' : 'DASAR PERUBAHAN AYAT'}</div>
             </div>
             {!init.adaJejak ? (
               <div className="panel-info jj-info">Jejak belum disusun. Jalankan menu Modul Naskah → “Susun usulan jejak ayat”, lalu Refresh.</div>

@@ -218,7 +218,7 @@ ins { text-decoration: none; background: var(--hijau); border-bottom: 1px solid 
 }
 .nk-legenda span { display: inline-flex; align-items: center; gap: 5px; }
 
-.nk-utama { padding: var(--sp-3) 22px 60px; min-width: 0; display: flex; flex-direction: column; gap: 12px; max-width: 1280px; }
+.nk-utama { padding: var(--sp-3) 22px 60px; min-width: 0; display: flex; flex-direction: column; gap: 12px; max-width: 1600px; }
 .nk-pilih-sempit { display: none; }
 .nk-kepala { display: flex; flex-direction: column; gap: 4px; }
 .nk-judul-baris { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -231,11 +231,10 @@ ins { text-decoration: none; background: var(--hijau); border-bottom: 1px solid 
 .nk-cetak { margin-left: auto; padding: 4px 11px; font-size: 12px; }
 
 .jj-tabel { background: var(--putih); border: 1px solid var(--garis); border-radius: var(--r); box-shadow: var(--bayang); }
-.jj-kepala, .jj-baris { display: grid; grid-template-columns: minmax(0, 1fr) 112px minmax(0, 1fr) 200px; }
-.jj-tengah .chip-status { white-space: normal; text-align: center; line-height: 1.25; }
+.jj-kepala, .jj-baris { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 200px; }
 /* Mode rapat (v5): hanya bunyi 2026 dan dasar perubahan, huruf lebih besar. */
 .jj-rapat .jj-kepala, .jj-rapat .jj-baris { grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); }
-.jj-rapat .jj-kiri, .jj-rapat .jj-tengah, .jj-rapat .jj-k25, .jj-rapat .jj-tengah-kepala { display: none; }
+.jj-rapat .jj-kiri, .jj-rapat .jj-k25 { display: none; }
 .jj-rapat .jj-kanan { font-size: 15px; line-height: 1.6; }
 .jj-rapat .jj-dasar { font-size: 13px; }
 .st-kecil { display: none; margin-left: 6px; font-size: 10px; font-weight: 700; border-radius: 100px; padding: 1px 7px; background: var(--abu); vertical-align: 1px; }
@@ -275,16 +274,11 @@ mark.tugas { color: inherit; padding: 0 2px; border-radius: 2px; }
   padding: 9px 14px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; color: var(--teks-redup);
   background: var(--garis-2); text-transform: uppercase;
 }
-.jj-tengah-kepala { text-align: center; }
 .jj-info { margin: 10px 14px; }
 .jj-baris { border-top: 1px solid var(--garis); }
 .jj-baris.jj-terbuka { background: #fbfcff; }
 .jj-tanpa .jj-kiri, .jj-tanpa .jj-kanan { opacity: 0.85; }
 .jj-sel { padding: 12px 14px; font-size: 13px; line-height: 1.55; min-width: 0; }
-.jj-tengah {
-  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 4px;
-  border-left: 1px solid var(--garis-2); border-right: 1px solid var(--garis-2);
-}
 .jj-no { font-weight: 700; color: var(--navy); margin-right: 5px; }
 .jj-kosong { color: #b9bfcc; }
 .jj-belum { font-size: 10px; color: var(--teks-redup); font-style: italic; text-align: center; }
@@ -453,7 +447,6 @@ mark.tugas { color: inherit; padding: 0 2px; border-radius: 2px; }
   .nk-utama { padding: var(--sp-2); }
   .jj-kepala { display: none; }
   .jj-baris { grid-template-columns: 1fr; }
-  .jj-tengah { flex-direction: row; justify-content: flex-start; border: 0; padding: 0 14px; }
   .jj-panel { grid-template-columns: 1fr; }
   .jj-lebar { grid-column: auto; }
   .nk-catatan-isi { grid-template-columns: 1fr; }
@@ -631,7 +624,7 @@ mark.tl-organ { background: var(--kuning); color: inherit; padding: 0 1px; }
   .rel-ciut .rel-atas > :not(.rel-tombol) { display: none !important; }
   .rel-ciut .nk-utama { max-width: none; }
   /* v5.5.1: mode lebar — kolom 2025 dan 2026 sama lebar, dasar perubahan tetap. */
-  .rel-ciut .jj-kerja .jj-kepala, .rel-ciut .jj-kerja .jj-baris { grid-template-columns: minmax(0, 1fr) 112px minmax(0, 1fr) 200px; }
+  .rel-ciut .jj-kerja .jj-kepala, .rel-ciut .jj-kerja .jj-baris { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 200px; }
 }
 /* v5.5.1: tag temuan Telaah sebagai saringan. */
 .tag-klik { border: 1px solid transparent; cursor: pointer; font-family: inherit; line-height: 1.5; }
@@ -914,3 +907,16 @@ button.lencana-m-ada:hover { background: #e3e5ea; border-color: #9aa0ad; }
 .cr-tambah:hover, .cr-tambah:focus-visible { color: var(--navy); border-color: var(--navy); border-style: solid; background: rgba(30, 39, 97, 0.04); }
 .kotak-rapat .cr-tambah { margin-top: 5px; }
 @media print { .cr-tambah { display: none !important; } }
+
+/* v5.25: kolom Jejak lebur ke Dasar perubahan ayat. Status dan centang Konfirmasi menempati baris atas sel,
+   dengan letak tetap di setiap baris agar tetap dapat disusuri dari atas ke bawah. */
+.jj-jejak-atas {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  margin: -2px 0 8px; padding-bottom: 7px; border-bottom: 1px dashed var(--garis);
+}
+.jj-jejak-atas .chip-status { white-space: normal; line-height: 1.25; }
+.jj-jejak-kaki { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.jj-baris:not(.jj-terbuka) .jj-jejak-atas:only-child { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+@media (max-width: 760px) {
+  .jj-jejak-atas { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+}

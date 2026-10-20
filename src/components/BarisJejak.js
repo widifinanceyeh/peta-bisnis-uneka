@@ -18,6 +18,8 @@ import { bacaDraf, tulisDraf, hapusDraf } from '../hooks/useDraf';
  * sorotan tugas YEH/UNEKA, dan pita peta 2026.
  * Panel sunting jejak dan penulisan usulan redaksi hanya pada Mode kerja.
  * v5.24: kolom Jejak hanya dibaca — status sebagai label, ditambah satu centang Konfirmasi (Mode kerja).
+ * v5.25: kolom Jejak dilebur ke kolom Dasar perubahan ayat sebagai baris atas sel, agar kedua kolom naskah
+ * selebar mungkin. Letaknya tetap sama di setiap baris sehingga tetap dapat disusuri dari atas ke bawah.
  * Panel enam isian pindah ke menu ⋯ › “Sunting jejak…”. Catatan rapat tidak lagi lewat ⋯: daftar dan tombol
  * “+ catatan rapat” tampil langsung di bawah bunyi ayat pada kolom rancangan 2026.
  * v5.16: ayat yang dipindah ke pasal lain tampil sebagai kartu bayangan ungu di pasal asal (bukan lagi bagian
@@ -63,27 +65,6 @@ export default function BarisJejak({
             {pitaKiri}
           </>
         ) : <><span className="jj-kosong">—</span>{pitaKiri}</>}
-      </div>
-
-      <div className="jj-sel jj-tengah">
-        {jejak ? (
-          <span className="chip-status" style={{ background: warnaSt || undefined }} title="Jejak perubahan ayat ini">
-            {jejak.status || 'tanpa status'}
-          </span>
-        ) : bisaSunting && onBuatJejak && (kanan ? kanan.pasal === pasal : kiri && kiri.pasal === pasal) ? (
-          <button type="button" className="jj-buat" onClick={buat} disabled={membuat}
-                  title={kanan ? 'Buat baris jejak untuk ayat ini. Status awal BARU; pasangan Statuta 2025 dan alasan dapat diisi sesudahnya.'
-                    : 'Buat baris jejak untuk ayat Statuta 2025 ini. Status awal DIHAPUS; pasangan 2026 dan alasan dapat diisi sesudahnya.'}>
-            {membuat ? 'membuat…' : '+ Buat jejak'}
-          </button>
-        ) : <span className="jj-belum">belum ada jejak</span>}
-        {jejak && bisaSunting ? (
-          <CentangKonfirmasi jejak={jejak} cfg={cfg} onGalat={onGalat} onSunting={() => { if (terbuka) onTutup(); else onBuka(); }} />
-        ) : null}
-        {jejak && !jejak.dikonfirmasi ? <span className="tanda-usulan">usulan</span> : null}
-        {jejak && jejak.dikonfirmasi ? <span className="tanda-konfirmasi">✓ dikonfirmasi</span> : null}
-        {wajib ? <span className="tanda-awas">perlu alasan</span> : null}
-        {jejak && bacaDraf('jejak:' + jejak.id) !== undefined ? <span className="tanda-awas" title="Buka untuk menyimpan ulang">belum tersimpan</span> : null}
       </div>
 
       <div className="jj-sel jj-kanan">
@@ -156,6 +137,30 @@ export default function BarisJejak({
       </div>
 
       <div className="jj-sel jj-dasar">
+        {bisaSunting ? (
+          <div className="jj-jejak-atas">
+            {jejak ? (
+              <span className="chip-status" style={{ background: warnaSt || undefined }} title="Jejak perubahan ayat ini">
+                {jejak.status || 'tanpa status'}
+              </span>
+            ) : onBuatJejak && (kanan ? kanan.pasal === pasal : kiri && kiri.pasal === pasal) ? (
+              <button type="button" className="jj-buat" onClick={buat} disabled={membuat}
+                      title={kanan ? 'Buat baris jejak untuk ayat ini. Status awal BARU; pasangan Statuta 2025 dan alasan dapat diisi sesudahnya.'
+                        : 'Buat baris jejak untuk ayat Statuta 2025 ini. Status awal DIHAPUS; pasangan 2026 dan alasan dapat diisi sesudahnya.'}>
+                {membuat ? 'membuat…' : '+ Buat jejak'}
+              </button>
+            ) : <span className="jj-belum">belum ada jejak</span>}
+            <span className="jj-jejak-kaki">
+              {jejak ? (
+                <CentangKonfirmasi jejak={jejak} cfg={cfg} onGalat={onGalat} onSunting={() => { if (terbuka) onTutup(); else onBuka(); }} />
+              ) : null}
+              {jejak && !jejak.dikonfirmasi ? <span className="tanda-usulan">usulan</span> : null}
+              {jejak && jejak.dikonfirmasi ? <span className="tanda-konfirmasi">✓ dikonfirmasi</span> : null}
+              {wajib ? <span className="tanda-awas">perlu alasan</span> : null}
+              {jejak && bacaDraf('jejak:' + jejak.id) !== undefined ? <span className="tanda-awas" title="Buka untuk menyimpan ulang">belum tersimpan</span> : null}
+            </span>
+          </div>
+        ) : null}
         {kanan && pertama ? (dasar && dasar.length
           ? <ul className="daftar-rapat">{dasar.map((b, i) => <li key={i}><TeksRujukan teks={b} onDh={onDh} /></li>)}</ul>
           : <span className="redup jj-ikut">Mengikuti garis besar pasal.</span>) : null}
