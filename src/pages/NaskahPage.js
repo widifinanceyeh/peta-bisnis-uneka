@@ -575,7 +575,7 @@ export default function NaskahPage({ pasal, onPilihPasal, onBukaUrusan, onTelaah
                             onPilihPasal={onPilihPasal} onGalat={onGalat} bisaSunting={kerja} onDh={setDh}
                             pertama={pertama} dasar={k ? gabungDasar(catatan.per[k.id], alasanAyat[k.id]) : null} penanda={k ? penanda[k.id] : null}
                             warna={warna} redaksi={k ? redaksiAyat[k.id] : null}
-                            rapat={k ? rapatAyat[k.id] : null} sejak={k ? sejakAyat[k.id] : null}
+                            rapat={k ? rapatAyat[k.id] : (l ? rapatAyat[l.id] : null)} sejak={k ? sejakAyat[k.id] : null}
                             pita={pitaPeta('2026', daftarUrusan)}
                             pitaKiri={pitaPeta('2025', daftarLama)}
                             onBuatJejak={(m) => buatJejak(m, pasal).then((j) => { setTerbuka(j.id); return j; })} />
