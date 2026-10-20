@@ -905,9 +905,10 @@ button.lencana-m-ada:hover { background: #e3e5ea; border-color: #9aa0ad; }
 
 /* v5.24: catatan rapat tampil di bawah bunyi ayat, tidak lagi lewat menu "..." */
 .cr-kosong { margin-top: 7px; }
-.cr-tambah { font: inherit; font-size: 10.5px; color: var(--teks-redup); background: transparent;
-  border: 1px dashed rgba(30, 39, 97, 0.28); border-radius: 999px; padding: 2px 10px; cursor: pointer; white-space: nowrap; }
-.cr-tambah:hover, .cr-tambah:focus-visible { color: var(--navy); border-color: var(--navy); border-style: solid; background: rgba(30, 39, 97, 0.04); }
+.cr-tambah { font: inherit; font-size: 10.5px; color: #0e7490; background: #eef8fa;
+  border: 1px dashed #8cc9d8; border-radius: 999px; padding: 2px 10px; cursor: pointer; white-space: nowrap; }
+.cr-tambah::before { content: '\270e'; margin-right: 4px; }
+.cr-tambah:hover, .cr-tambah:focus-visible { color: #0b5f74; border-color: #0e7490; border-style: solid; background: #d7eef4; }
 .kotak-rapat .cr-tambah { margin-top: 5px; }
 @media print { .cr-tambah { display: none !important; } }
 
