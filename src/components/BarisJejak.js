@@ -135,7 +135,7 @@ export default function BarisJejak({
             ) : null}
             {pita}
           </>
-        ) : <span className="redup kecil">sama dengan baris di atas · ({kanan.nomor})</span>) : <><span className="jj-kosong">—</span>{pita}</>}
+        ) : <span className="redup kecil">sama dengan baris di atas · ({kanan.nomor})</span>) : <><span className="jj-kosong">—</span>{kiri ? <KotakRapat ayat={kiri} daftar={rapat} onGalat={onGalat} /> : null}{pita}</>}
       </div>
 
       <div className="jj-sel jj-dasar">
